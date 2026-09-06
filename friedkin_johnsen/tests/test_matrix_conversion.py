@@ -152,6 +152,17 @@ class TestToArray:
 class TestTo2DMatrix:
 
     @pytest.mark.parametrize("input_array_like", [
+            1,
+            -2.5,
+            [1],
+            np.pi
+    ])
+    def test_if_scalar(self, input_array_like):
+        array = to_2D_matrix(input_array_like)
+        assert array.ndim == 2
+        assert array.shape == (1, 1)
+
+    @pytest.mark.parametrize("input_array_like", [
         (np.array([])),
         (np.array([1])),
         (np.array([1, 2, 3]))
@@ -181,7 +192,7 @@ class TestTo2DMatrix:
     def test_error_if_not_2_dimensional(self, input_array_like):
         with pytest.raises(ValueError,
                            match=r".* expected a matrix of dimension "
-                           "either one or two.*"):
+                           "equal or lower than two.*"):
             to_2D_matrix(input_array_like)
 
 

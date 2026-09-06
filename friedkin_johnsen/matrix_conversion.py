@@ -123,12 +123,12 @@ def to_2D_matrix(mtx: str | npt.ArrayLike,
 
     mtx = to_array(mtx, array_error_name=array_error_name)
 
-    if mtx.ndim == 1:
+    if mtx.ndim in (0, 1):
         mtx = mtx.reshape(-1, 1)
 
     elif mtx.ndim != 2:
         raise ValueError(f"In {item_summary_for_error(mtx, array_error_name)} "
-                         f"expected a matrix of dimension either one or two, "
+                         f"expected a matrix of dimension equal or lower than two, "
                          f"got ndim={mtx.ndim}.")
 
     return mtx
