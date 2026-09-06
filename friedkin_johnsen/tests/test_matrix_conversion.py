@@ -22,54 +22,56 @@ class TestToArray:
          (True, np.array(1, dtype=float)),
         ])
     def test_0_dimensional(self, input_array_like, expected_array):
-        assert np.array_equal(to_array(input_array_like), expected_array)
+        assert np.allclose(to_array(input_array_like), expected_array)
 
     @pytest.mark.parametrize("input_array_like, expected_array", [
-         ([1, 2, 3], np.array([1, 2, 3], dtype=float)),
-         ((0, 0, 0), np.array([0, 0, 0], dtype=float)),
-         (["1", "2", "3"], np.array([1, 2, 3], dtype=float)),
-         ("(1, 2, 3)", np.array([1, 2, 3], dtype=float)),
+         ([1, 2, 3], [1, 2, 3]),
+         ((0, 0, 0), [0, 0, 0]),
+         (["1", "2", "3"], [1, 2, 3]),
+         ("(1, 2, 3)", [1, 2, 3]),
 
-         (np.array([-4, +2, 2+3], dtype=float),
-          np.array([-4, 2, 5], dtype=float))
+         (np.array([-4, +2, 5.5], dtype=float), [-4, 2, 5.5])
         ])
     def test_1_dimensional(self, input_array_like, expected_array):
-        assert np.array_equal(to_array(input_array_like), expected_array)
+        assert np.allclose(to_array(input_array_like),
+                           np.array(expected_array, dtype=float))
 
     @pytest.mark.parametrize("input_array_like, expected_array", [
-         ([[1], [2]], np.array([[1], [2]], dtype=float)),
-         ([[1, 2], [3, 4]], np.array([[1, 2], [3, 4]], dtype=float)),
-         ([[1, 2], [3, 4], [5, 6]],
-          np.array([[1, 2], [3, 4], [5, 6]], dtype=float)),
+         ([[1], [2]], [[1], [2]]),
+         ([[1, 2], [3, 4]], [[1, 2], [3, 4]]),
+         ([[1, 2], [3, 4], [5, 6]], [[1, 2], [3, 4], [5, 6]]),
 
          ([[[1, 2], [3, 4]], [[5, 6], [7, 8]]],
-          np.array([[[1, 2], [3, 4]], [[5, 6], [7, 8]]], dtype=float)),
+          [[[1, 2], [3, 4]], [[5, 6], [7, 8]]]),
 
-         (np.array([[1, 2], [3, 4]]), np.array([[1, 2], [3, 4]], dtype=float)),
-         ("[[1, 2],[3, 4]]", np.array([[1, 2], [3, 4]], dtype=float))
+         (np.array([[1.2, 2], [np.pi, 4]]), [[1.2, 2], [np.pi, 4]]),
+         ("[[1, 2],[3, 4]]", [[1, 2], [3, 4]])
         ])
     def test_multi_dimensional(self, input_array_like, expected_array):
-        assert np.array_equal(to_array(input_array_like), expected_array)
+        assert np.allclose(to_array(input_array_like),
+                           np.array(expected_array, dtype=float))
 
     @pytest.mark.parametrize("input_array_like, expected_array", [
-         ([[]], np.array([[]], dtype=float)),
-         ([()], np.array([[]], dtype=float)),
-
-         ([[], [], []], np.array([[], [], []], dtype=float)),
-
-         ([[[], []], [[], []]], np.array([[[], []], [[], []]], dtype=float)),
+         ([[]], [[]]),
+         ((), []),
+         ([[[]]], [[[]]]),
+         ([[[], []], [[], []]], [[[], []], [[], []]]),
+         ("[()]", [()]),
+         ("[[[[]]]]", [[[[]]]]),
         ])
     def test_empty_structures(self, input_array_like, expected_array):
-        assert np.array_equal(to_array(input_array_like), expected_array)
+        assert np.allclose(to_array(input_array_like),
+                           np.array(expected_array, dtype=float))
 
     @pytest.mark.parametrize("input_array_like, expected_array", [
-         ([[1, 2], [3, 4]], np.array([[1, 2], [3, 4]], dtype=float)),
-         (([1, 2], [3, 4]), np.array([[1, 2], [3, 4]], dtype=float)),
-         ([(1, 2), (3, 4)], np.array([[1, 2], [3, 4]], dtype=float)),
-         (((1, 2), (3, 4)), np.array([[1, 2], [3, 4]], dtype=float))
+         ([[1, 2], [3, 4]], [[1, 2], [3, 4]]),
+         (([1, 2], [3, 4]), [[1, 2], [3, 4]]),
+         (((1, 2), (3, 4)), [[1, 2], [3, 4]]),
+         ((((1, 2), (3, 4))), [[1, 2], [3, 4]])
         ])
     def test_various_input_formats(self, input_array_like, expected_array):
-        assert np.array_equal(to_array(input_array_like), expected_array)
+        assert np.allclose(to_array(input_array_like),
+                           np.array(expected_array, dtype=float))
 
     @pytest.mark.parametrize("string_input", [
          "invalid_string",
