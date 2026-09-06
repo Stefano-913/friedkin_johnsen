@@ -106,7 +106,7 @@ class TestToArray:
         [1, 2, (3, 4)]
         ])
     def test_error_not_convertible(self, not_array_like_input):
-        with pytest.raises(ValueError, match=r".* of <class '.*'> type cannot "
+        with pytest.raises(ValueError, match=r".*cannot "
                            r"be converted to a matrix.\n.*"):
             to_array(not_array_like_input)
 
@@ -116,7 +116,7 @@ class TestToArray:
          {1: "a", 2: "b"}
          ])
     def test_error_not_convertible_to_float(self, not_floating_point_input):
-        with pytest.raises(TypeError, match=r".* of <class '.*'> type cannot "
+        with pytest.raises(TypeError, match=r".*cannot "
                            r"be converted to floating-point.\n.*"):
             to_array(not_floating_point_input)
 

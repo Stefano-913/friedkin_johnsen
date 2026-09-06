@@ -64,7 +64,7 @@ def to_array(array: str | npt.ArrayLike,
     try:
         array = np.asarray(array)
     except (ValueError) as e:
-        raise ValueError(f"{array_summary} of {type(array)} type cannot be "
+        raise ValueError(f"{array_summary} cannot be "
                          f"converted to a matrix.\n{e}") from e
 
     if np.iscomplexobj(array):
@@ -73,9 +73,9 @@ def to_array(array: str | npt.ArrayLike,
 
     try:
         array = array.astype(float)
-    except (TypeError) as e:
-        raise TypeError(f"Values in {array_summary} of {type(array)} type "
-                        f"cannot be converted to floating-point.\n{e}") from e
+    except (TypeError, ValueError) as e:
+        raise TypeError(f"Values in {array_summary} cannot be "
+                        f"converted to floating-point.\n{e}") from e
 
     if not np.isfinite(array).all():
         raise ValueError(f"{array_summary} contains NaN or infinite values.")
