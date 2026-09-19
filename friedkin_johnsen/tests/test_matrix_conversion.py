@@ -152,10 +152,10 @@ class TestToArray:
 class TestTo2DMatrix:
 
     @pytest.mark.parametrize("input_array_like", [
-            1,
-            -2.5,
-            [1],
-            np.pi
+        1,
+        2.5,
+        [1],
+        np.pi
     ])
     def test_if_scalar(self, input_array_like):
         array = to_2D_matrix(input_array_like)
@@ -163,37 +163,37 @@ class TestTo2DMatrix:
         assert array.shape == (1, 1)
 
     @pytest.mark.parametrize("input_array_like", [
-        (np.array([])),
-        (np.array([1])),
-        (np.array([1, 2, 3]))
+        [],
+        [1],
+        [1, 2, 3]
     ])
     def test_if_vector(self, input_array_like):
-        array = to_2D_matrix(input_array_like)
+        array = to_2D_matrix(np.array(input_array_like))
         assert array.ndim == 2
         assert array.shape[1] == 1
 
     @pytest.mark.parametrize("input_array_like, expected_shape", [
-        (np.array([[]]), (1, 0)),
-        (np.array([[], [], []]), (3, 0)),
-        (np.array([[1], [2], [3]]), (3, 1)),
-        (np.array([[1, 2, 3]]), (1, 3)),
-        (np.array([[1, 2, 3], [4, 5, 6]]), (2, 3))
+        ([[]], (1, 0)),
+        ([[], [], []], (3, 0)),
+        ([[1], [2], [3]], (3, 1)),
+        ([[1, 2, 3]], (1, 3)),
+        ([[1, 2, 3], [4, 5, 6]], (2, 3))
     ])
     def test_if_2D_matrix(self, input_array_like, expected_shape):
-        array = to_2D_matrix(input_array_like)
+        array = to_2D_matrix(np.array(input_array_like))
         assert array.ndim == 2
         assert array.shape == expected_shape
 
     @pytest.mark.parametrize("input_array_like", [
-        (np.array([[[]]])),
-        (np.array([[[1, 2], [3, 4]]])),
-        (np.array([[[0, 0], [0, 0]], [[1, 2], [3, 4]]]))
+        [[[]]],
+        [[[1, 2], [3, 4]]],
+        [[[0, 0], [0, 0]], [[1, 2], [3, 4]]]
     ])
     def test_error_if_not_2_dimensional(self, input_array_like):
         with pytest.raises(ValueError,
                            match=r".* expected a matrix of dimension "
                            "equal or lower than two.*"):
-            to_2D_matrix(input_array_like)
+            to_2D_matrix(np.array(input_array_like))
 
 
 if __name__ == "__main__":
