@@ -110,23 +110,24 @@ class TestAdjacencyMatrix:
         assert (matrix.max() <= 1 and matrix.min() >= 0)
 
     @pytest.mark.parametrize("mean_edge_weight, std_edge_weight", [
-        (0.5, 0.001),
-        (0.5, 0.0025),
-        (0.5, 0.01),
-        (0.3, 0.01),
-        (0.7, 0.01)
+        (0.3, 0.1),
+        (0.4, 0.133),
+        (0.5, 0.166),
+        (0.6, 0.133),
+        (0.7, 0.1)
     ])
     def test_weight_values_normally_distributed(self,
                                                 mean_edge_weight,
                                                 std_edge_weight):
-        # Check for mean values primarily in the middle, as the clamping
-        # at the extremes might skew the results
+        # The standard deviations were chosen so that the clamping of the
+        # values in (0, 1) started at a 3σ distance and so the truncation
+        # statistically irrelevant.
         matrix = build_adjacency_matrix(
             nodes=10000, mean_edge_weight=mean_edge_weight,
             std_edge_weight=std_edge_weight, seed=1
         )
         values = matrix.data
-        z_values = (values - np.mean(values)) / np.std(values)
+        z_values = (values - mean_edge_weight) / std_edge_weight
         statistic, p_value = kstest(z_values, 'norm')
         assert p_value > 0.05
 
@@ -333,23 +334,24 @@ class TestPrejudiceMatrix:
         assert (matrix.max() <= 1 and matrix.min() >= 0)
 
     @pytest.mark.parametrize("mean_prejudice, std_prejudice", [
-        (0.5, 0.001),
-        (0.5, 0.0025),
-        (0.5, 0.01),
-        (0.3, 0.01),
-        (0.7, 0.01)
+        (0.3, 0.1),
+        (0.4, 0.133),
+        (0.5, 0.166),
+        (0.6, 0.133),
+        (0.7, 0.1)
     ])
     def test_prejudice_values_normally_distributed(self,
                                                    mean_prejudice,
                                                    std_prejudice):
-        # Check for mean values primarily in the middle, as the clamping
-        # at the extremes might skew the results
+        # The standard deviations were chosen so that the clamping of the
+        # values in (0, 1) started at a 3σ distance and so the truncation
+        # statistically irrelevant.
         matrix = build_prejudice_matrix(
             nodes=10000, mean_prejudice=mean_prejudice,
             std_prejudice=std_prejudice, seed=1
         )
-        values = matrix.data
-        z_values = (values - np.mean(values)) / np.std(values)
+        values = matrix.ravel()
+        z_values = (values - mean_prejudice) / std_prejudice
         statistic, p_value = kstest(z_values, 'norm')
         assert p_value > 0.05
 
@@ -494,23 +496,24 @@ class TestSusceptibilityMatrix:
         assert (matrix.tocsr().max() <= 1 and matrix.tocsr().min() >= 0)
 
     @pytest.mark.parametrize("mean_susceptibility, std_susceptibility", [
-        (0.5, 0.001),
-        (0.5, 0.0025),
-        (0.5, 0.01),
-        (0.3, 0.01),
-        (0.7, 0.01)
+        (0.3, 0.1),
+        (0.4, 0.133),
+        (0.5, 0.166),
+        (0.6, 0.133),
+        (0.7, 0.1)
     ])
     def test_susceptibility_values_normally_distributed(self,
                                                         mean_susceptibility,
                                                         std_susceptibility):
-        # Check for mean values primarily in the middle, as the clamping
-        # at the extremes might skew the results
+        # The standard deviations were chosen so that the clamping of the
+        # values in (0, 1) started at a 3σ distance and so the truncation
+        # statistically irrelevant.
         matrix = build_susceptibility_matrix(
             nodes=10000, mean_susceptibility=mean_susceptibility,
             std_susceptibility=std_susceptibility, seed=1
         )
         values = matrix.data
-        z_values = (values - np.mean(values)) / np.std(values)
+        z_values = (values - mean_susceptibility) / std_susceptibility
         statistic, p_value = kstest(z_values, 'norm', axis=None)
         assert p_value > 0.05
 
