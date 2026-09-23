@@ -26,6 +26,15 @@ def dia_array_equal(array_a: sp.dia_array, array_b: sp.dia_array) -> bool:
             and np.allclose(array_a.data, array_b.data))
 
 
+def mean_row_half_difference(matrix: sp.csr_array):
+    half_differences = []
+
+    for i in range(matrix.shape[0]):
+        row_values = matrix.data
+        half_differences.append((row_values.max() - row_values.min()) / 2)
+    return sum(half_differences) / len(half_differences)
+
+
 class TestAdjacencyMatrix:
 
     def test_default_adjacency_matrix(self, subtests):
@@ -95,41 +104,56 @@ class TestAdjacencyMatrix:
             no_edges = nodes * (mean_node_degree // 2)
             assert matrix.nnz == 2 * no_edges
 
-    @pytest.mark.parametrize("mean_edge_weight, std_edge_weight", [
-        (0.5, 0.25),
-        (0.75, 1),
-        (0.01, 2),
-        (5, 0.01)
+    @pytest.mark.parametrize("weights_variability", [
+        0,
+        1,
+        10,
+        100,
+        1000
     ])
-    def test_weight_values_clamped(self, mean_edge_weight, std_edge_weight):
+    def test_weight_values_clamped(self, weights_variability):
 
         matrix = build_adjacency_matrix(nodes=10_000,
-                                        mean_edge_weight=mean_edge_weight,
-                                        std_edge_weight=std_edge_weight,
+                                        weights_variability=weights_variability,
                                         seed=1)
         assert (matrix.max() <= 1 and matrix.min() >= 0)
 
-    @pytest.mark.parametrize("mean_edge_weight, std_edge_weight", [
-        (0.3, 0.1),
-        (0.4, 0.133),
-        (0.5, 0.166),
-        (0.6, 0.133),
-        (0.7, 0.1)
-    ])
-    def test_weight_values_normally_distributed(self,
-                                                mean_edge_weight,
-                                                std_edge_weight):
-        # The standard deviations were chosen so that the clamping of the
-        # values in (0, 1) started at a 3σ distance and so the truncation
-        # statistically irrelevant.
+    def test_low_weights_variability(self):
         matrix = build_adjacency_matrix(
-            nodes=10000, mean_edge_weight=mean_edge_weight,
-            std_edge_weight=std_edge_weight, seed=1
-        )
-        values = matrix.data
-        z_values = (values - mean_edge_weight) / std_edge_weight
-        statistic, p_value = kstest(z_values, 'norm')
-        assert p_value > 0.05
+                    nodes=10000,
+                    weights_variability=0,
+                    seed=1
+                )
+        assert mean_row_half_difference(matrix) < 0.2
+
+    def test_stuff(self):
+        variabilities = [0.01, 0.1, 1, 10, 100]
+
+        semi_differences = [
+            mean_row_half_difference(
+                build_adjacency_matrix(nodes=200,
+                                       weights_variability=variability,
+                                       seed=1))
+            for variability in variabilities
+        ]
+
+        assert np.all(np.diff(semi_differences) > 0)
+
+    def test_is_every_node_influenced(self):
+        matrix = build_adjacency_matrix(nodes=10_000,
+                                        weights_variability=0,
+                                        min_edge_weight=0.001,
+                                        seed=1)
+        # "effective_graph" verifies connectivity via actual influence
+        # rather than edges alone, which is more relevant to the model
+        matrix = nx.DiGraph(matrix)
+        effective_graph = nx.DiGraph()
+        effective_graph.add_nodes_from(matrix.nodes())
+        effective_graph.add_edges_from(
+            (u, v) for u, v, weight in matrix.edges(data='weight')
+            if weight > 0.001)
+
+        assert nx.is_strongly_connected(effective_graph)
 
     @pytest.mark.parametrize("even_k, odd_k", [
         (4, 5),
@@ -176,8 +200,8 @@ class TestAdjacencyMatrix:
         ("nodes", "100"),
         ("mean_node_degree", "5"),
         ("prob_rewire_edge", "0.5"),
-        ("mean_edge_weight", "0.8"),
-        ("std_edge_weight", "0.2"),
+        ("weights_variability", "0.8"),
+        ("min_edge_weight", "4"),
         ("tries", "100"),
         ("seed", "1"),
 
@@ -224,18 +248,6 @@ class TestAdjacencyMatrix:
                            match="Invalid probability of edge rewiring"):
             build_adjacency_matrix(prob_rewire_edge=prob_rewire_edge)
 
-    @pytest.mark.parametrize("std_edge_weight", [
-        -10,
-        -5,
-        -1,
-        -0.5
-    ])
-    def test_std_edge_weight_valueerror(self, std_edge_weight):
-        # `std_edge_weight` must be non-negative
-        with pytest.raises(ValueError,
-                           match="Invalid standard deviation of edge weight"):
-            build_adjacency_matrix(std_edge_weight=std_edge_weight)
-
     @pytest.mark.parametrize("seed", [
         -10,
         -5,
@@ -256,6 +268,42 @@ class TestAdjacencyMatrix:
         with pytest.raises(ValueError,
                            match="Invalid input 'number of tries'"):
             build_adjacency_matrix(tries=tries)
+
+    @pytest.mark.parametrize("weights_variability", [
+        -1,
+        -0.5,
+        -0.1,
+    ])
+    def test_negative_weights_variability_warn(self, weights_variability):
+        # 'weights_variability' must be non-negative
+        with pytest.warns(UserWarning, match="Invalid value for variability "
+                          r"of edge weight:.* During process, the value "
+                          "will be assumed to be 0."):
+            build_adjacency_matrix(weights_variability=weights_variability)
+
+    @pytest.mark.parametrize("min_edge_weight", [
+        -1,
+        -0.5,
+        -0.1,
+    ])
+    def test_negative_min_edge_weight_warn(self, min_edge_weight):
+        # 'min_edge_weight' must be non-negative
+        with pytest.warns(UserWarning, match="Invalid value for minimum "
+                          r"edge weight:.*During process, the value"
+                          r"will be assumed to be the lowest possible.*"):
+            build_adjacency_matrix(min_edge_weight=min_edge_weight)
+
+    @pytest.mark.parametrize("min_edge_weight", [
+        0.5,
+        0.7,
+        1,
+    ])
+    def test_high_min_edge_weight_warn(self, min_edge_weight):
+        # 'min_edge_weight' must be non-negative
+        with pytest.warns(UserWarning, match=r"'min_edge_weight' value is.*"
+                          "which will result in all edges having the "
+                          "same weight."):
+            build_adjacency_matrix(min_edge_weight=min_edge_weight)
 
     def test_runtimeerror(self, monkeypatch):
         # A patch of the 'connected_watts_strogatz_graph', so that we simulate
