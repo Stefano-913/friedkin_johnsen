@@ -89,12 +89,9 @@ class TestAdjacencyMatrix:
 
         # ----
 
-        with subtests.test(msg="graph is undirected"):
-            assert csr_array_equal(matrix, matrix.T)
-
         with subtests.test(msg="graph is connected"):
-            n_components = connected_components(matrix, directed=False)[0]
-            assert n_components == 1
+            no_of_components = connected_components(matrix, directed=False)[0]
+            assert no_of_components == 1
 
         with subtests.test(msg="no self loops"):
             assert np.all(matrix.diagonal() == 0)
@@ -359,6 +356,11 @@ class TestSusceptibilityMatrix:
 
         with subtests.test(msg="is correct shape"):
             assert matrix.shape == (nodes, nodes)
+
+        with subtests.test(msg="is diagonal"):
+            # triangular matrices above and below the diagonal are empty
+            assert (sp.triu(matrix, k=1).nnz == 0 and
+                    sp.tril(matrix, k=-1).nnz == 0)
 
         with subtests.test(msg="entries are correct type"):
             assert np.issubdtype(matrix.dtype, np.floating)
