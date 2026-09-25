@@ -243,8 +243,16 @@ def build_adjacency_matrix(nodes: int = 1000,
         row_weights = rng.dirichlet([alpha]*node_degrees[node])
 
         if min(row_weights) < min_edge_weight:
-            row_weights = np.clip(row_weights, min_edge_weight, None)
-            row_weights /= row_weights.sum()
+            degree = node_degrees[node]
+            if min_edge_weight * degree >= 1:
+                row_weights = np.full(degree, 1 / degree)
+
+            else:
+                # The weights get all set to minimum first, then what's left
+                # available is distributed according to the Dirichlet sampling.
+                weight_left_after_floor = 1 - min_edge_weight * degree
+                row_weights = (min_edge_weight +
+                               weight_left_after_floor * row_weights)
 
         for neighbor, weight in zip(neighbors, row_weights):
             directed_graph[node][neighbor]['weight'] = weight

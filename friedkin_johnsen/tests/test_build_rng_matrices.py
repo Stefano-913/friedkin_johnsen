@@ -139,19 +139,23 @@ class TestAdjacencyMatrix:
 
         assert np.all(np.diff(semi_differences) > 0)
 
-    def test_is_every_node_influenced(self):
+    @pytest.mark.parametrize("min_edge_weight", [0.001, 0.01, 0.1, 0.3, 0.5])
+    @pytest.mark.filterwarnings("ignore::UserWarning")
+    def test_is_every_node_influenced(self, min_edge_weight):
         matrix = build_adjacency_matrix(nodes=10_000,
                                         weights_variability=0,
-                                        min_edge_weight=0.001,
+                                        min_edge_weight=min_edge_weight,
                                         seed=1)
         # "effective_graph" verifies connectivity via actual influence
         # rather than edges alone, which is more relevant to the model
         matrix = nx.DiGraph(matrix)
         effective_graph = nx.DiGraph()
         effective_graph.add_nodes_from(matrix.nodes())
+
+        degrees = dict(matrix.out_degree())
         effective_graph.add_edges_from(
             (u, v) for u, v, weight in matrix.edges(data='weight')
-            if weight > 0.001)
+            if weight >= min(min_edge_weight, 1/degrees[u]))
 
         assert nx.is_strongly_connected(effective_graph)
 
