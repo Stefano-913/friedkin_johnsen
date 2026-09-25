@@ -5,6 +5,118 @@ import warnings
 from .error_messages import item_summary_for_error
 
 
+def check_nodes(nodes, mean_node_degree=None):
+    # In the adjacency matrix, the 'mean node degree' parameter
+    # adds a requirement.
+    # Susceptibility and prejudice matrices instead
+    # keep the plain 'nodes >= 3' condition.
+
+    if type(nodes) is not int:
+        raise TypeError("Invalid type for number of nodes: "
+                        f"{type(nodes)}. Expected integer number.")
+
+    if mean_node_degree is not None:
+        if nodes <= mean_node_degree:
+            raise ValueError("Invalid number of nodes: "
+                             f"{nodes}. "
+                             "Expected integer number higher than mean node "
+                             f"degree (current value: {mean_node_degree}).")
+    if nodes < 3:
+        raise ValueError("Invalid number of nodes: "
+                         f"{nodes}. Expected positive integer number "
+                         f"equal or higher than 3.")
+
+
+def check_seed(seed):
+    if seed is not None and type(seed) is not int:
+        raise TypeError(f"Invalid type for input seed: '{type(seed)}'. "
+                        "Expected either 'None' or integer number.")
+    if type(seed) is int and seed < 0:
+        raise ValueError(f"Invalid input seed: '{seed}'. "
+                         "Expected either 'None' or non-negative integer.")
+
+# ------
+
+
+def check_adjacency_input(nodes,
+                          mean_node_degree,
+                          prob_rewire_edge,
+                          weights_variability,
+                          min_edge_weight,
+                          tries,
+                          seed,
+                          lowest_edge_weight):
+
+    if type(mean_node_degree) is not int:
+        raise TypeError("Invalid type for mean node degree: "
+                        f"{item_summary_for_error(mean_node_degree)}. "
+                        "Expected integer number.")
+    if mean_node_degree < 2:
+        raise ValueError("Invalid mean node degree value: "
+                         f"{mean_node_degree}. "
+                         "Expected integer number higher or equal than 2.")
+
+    check_nodes(nodes, mean_node_degree=mean_node_degree)
+
+    if type(prob_rewire_edge) not in (float, int):
+        raise TypeError("Invalid type for probability of edge rewiring: "
+                        f"{item_summary_for_error(prob_rewire_edge)}. "
+                        "Expected floating-point value.")
+    if prob_rewire_edge < 0 or prob_rewire_edge > 1:
+        raise ValueError("Invalid probability of edge rewiring: "
+                         f"{prob_rewire_edge}. "
+                         "Expected floating-point comprised between "
+                         "0 and 1.")
+
+    if type(weights_variability) not in (int, float):
+        raise TypeError("Invalid type for variability of edge weight: "
+                        f"{item_summary_for_error(weights_variability)}. "
+                        "Expected a floating point.")
+    if weights_variability < 0:
+        warnings.warn("Invalid value for variability of edge weight: "
+                      f"{weights_variability}. "
+                      "During process, the value will be assumed to be 0.",
+                      UserWarning)
+
+    if type(min_edge_weight) not in (int, float):
+        raise TypeError("Invalid type for minimum edge weight: "
+                        f"{item_summary_for_error(min_edge_weight)}. "
+                        "Expected a floating point.")
+    if min_edge_weight < 0:
+        warnings.warn("Invalid value for minimum edge weight: "
+                      f"{min_edge_weight}. During process, the "
+                      "value will be assumed to be the lowest "
+                      f"possible ({lowest_edge_weight}).", UserWarning)
+    if min_edge_weight >= 1/mean_node_degree:
+        warnings.warn(f"'min_edge_weight' value is {min_edge_weight}, "
+                      "while the mean degree of every node is "
+                      f"{mean_node_degree}. "
+                      "These values will result in a significant portion "
+                      "of the edges having the same weight.", UserWarning)
+    if min_edge_weight >= 0.5:
+        warnings.warn(f"'min_edge_weight' value is {min_edge_weight}, "
+                      "which will result in all edges having the same weight.",
+                      UserWarning)
+
+    if seed is not None and type(seed) is not int:
+        raise TypeError("Invalid type for input seed: "
+                        f"{item_summary_for_error(seed)}. "
+                        "Expected either 'None' or integer number.")
+    if type(seed) is int and seed < 0:
+        raise ValueError("Invalid input seed: "
+                         f"{seed}. "
+                         "Expected either 'None' or non-negative integer.")
+
+    if type(tries) is not int:
+        raise TypeError("Invalid type for input 'number of tries': "
+                        f"{item_summary_for_error(tries)}. "
+                        "Expected integer number.")
+    if tries <= 0:
+        raise ValueError("Invalid input 'number of tries': "
+                         f"{tries}. "
+                         "Expected positive integer number.")
+
+
 def build_adjacency_matrix(nodes: int = 1000,
                            mean_node_degree: int = 6,
                            prob_rewire_edge: float = 0.1,
@@ -37,7 +149,8 @@ def build_adjacency_matrix(nodes: int = 1000,
             algorithm is k//2 (so, k=4 yields the same result as k=5 ).
 
         prob_rewire_edge : float, default=0.1
-            Probability of rewiring each edge, its value in [0,1].
+            Probability of rewiring each edge, its value required to be
+            in [0,1].
 
         weights_variability : float, default=0.5
             Parameter of the Dirichlet distribution used to sample each node's
@@ -49,15 +162,18 @@ def build_adjacency_matrix(nodes: int = 1000,
             roughly (0.01, 5).
 
         min_edge_weight : float, default=0.01
-            Minimum possible weight for an edge.
+            Minimum possible weight for an edge. If the minimum edge weight
+            is set equal or higher than the degree of a node, all its edges
+            will have the same value 1/degree due to normalization constraints.
 
         tries : int, default=100
             Number of attempts to generate a connected graph before
-            raising an error.
+            raising an error, must be greater than 0.
 
         seed : int, optional
-            The seed for the random number generator (None by default,
-            which generates a random seed).
+            The seed for the random number generator, required to be
+            non-negative if given (None by default, which generates a
+            random seed).
 
         Returns
         -------
@@ -83,94 +199,25 @@ def build_adjacency_matrix(nodes: int = 1000,
             If a connected graph could not be generated within `tries`
             attempts.
 
-        Warns
-        -----
-        UserWarning
-            If the number of `nodes` exceeds 100_000, the maximum
-            capped value for memory and performance purposes.
-
         Notes
         -----
         Modifying the weights, one can functionally isolate users if formally
         present edges are set to have zero weight. To prevent this, a minimum
-        edge value is chosen; conscious of the fact that in cases of very
-        degree(~900) this de-facto nullifies the Dirichlet distribution and
-        defaults to a uniform (and very low) weight distribution across
-        all edges.
+        edge value is chosen; conscious of the fact that in cases of very high
+        degree (or very high minimum) this de-facto nullifies the Dirichlet
+        distribution and defaults to a uniform weight distribution of 1/degree
+        across the majority of the edges.
     """
     lowest_edge_weight = 0.001
 
-    if type(mean_node_degree) is not int:
-        raise TypeError("Invalid type for mean node degree: "
-                        f"{item_summary_for_error(mean_node_degree)}. "
-                        "Expected integer number.")
-    if mean_node_degree < 2:
-        raise ValueError("Invalid mean node degree value: "
-                         f"{item_summary_for_error(mean_node_degree)}. "
-                         "Expected integer number higher or equal than 2.")
-
-    if type(nodes) is not int:
-        raise TypeError("Invalid type for number of nodes: "
-                        f"{item_summary_for_error(nodes)}. "
-                        "Expected integer number.")
-    if nodes <= mean_node_degree:
-        raise ValueError("Invalid number of nodes: "
-                         f"{item_summary_for_error(nodes)}. "
-                         "Expected integer number higher than mean node "
-                         f"degree (current value: {mean_node_degree}.)")
-
-    if type(prob_rewire_edge) not in (float, int):
-        raise TypeError("Invalid type for probability of edge rewiring: "
-                        f"{item_summary_for_error(prob_rewire_edge)}. "
-                        "Expected floating-point value.")
-    if prob_rewire_edge < 0 or prob_rewire_edge > 1:
-        raise ValueError("Invalid probability of edge rewiring: "
-                         f"{item_summary_for_error(prob_rewire_edge)}. "
-                         "Expected floating-point comprised between "
-                         "0 and 1.")
-
-    if type(weights_variability) not in (int, float):
-        raise TypeError("Invalid type for variability of edge weight: "
-                        f"{item_summary_for_error(weights_variability)}. "
-                        "Expected a floating point.")
-    if weights_variability < 0:
-        warnings.warn("Invalid value for variability of edge weight: "
-                      f"{weights_variability}. "
-                      "During process, the value will be assumed to be 0.")
-
-    if type(min_edge_weight) not in (int, float):
-        raise TypeError("Invalid type for minimum edge weight: "
-                        f"{item_summary_for_error(min_edge_weight)}. "
-                        "Expected a floating point.")
-    if min_edge_weight < 0:
-        warnings.warn("Invalid value for minimum edge weight: "
-                      f"{min_edge_weight}. During process, the "
-                      "value will be assumed to be the lowest "
-                      f"possible ({lowest_edge_weight}).")
-    if min_edge_weight >= 0.5:
-        warnings.warn(f"'min_edge_weight' value is {min_edge_weight}, "
-                      "which will result in all edges having the same weight."
-                      "\nSee --help 'Notes' for further informations, "
-                      "otherwise launch with --no_warn command to "
-                      "disable warnings.")
-
-    if seed is not None and type(seed) is not int:
-        raise TypeError("Invalid type for input seed: "
-                        f"{item_summary_for_error(seed)}. "
-                        "Expected either 'None' or integer number.")
-    if type(seed) is int and seed < 0:
-        raise ValueError("Invalid input seed: "
-                         f"{item_summary_for_error(seed)}. "
-                         "Expected either 'None' or non-negative integer.")
-
-    if type(tries) is not int:
-        raise TypeError("Invalid type for input 'number of tries': "
-                        f"{item_summary_for_error(tries)}. "
-                        "Expected integer number.")
-    if tries <= 0:
-        raise ValueError("Invalid input 'number of tries': "
-                         f"{item_summary_for_error(tries)}. "
-                         "Expected positive integer number.")
+    check_adjacency_input(nodes=nodes,
+                          mean_node_degree=mean_node_degree,
+                          prob_rewire_edge=prob_rewire_edge,
+                          weights_variability=weights_variability,
+                          min_edge_weight=min_edge_weight,
+                          tries=tries,
+                          seed=seed,
+                          lowest_edge_weight=lowest_edge_weight)
 
     rng = np.random.default_rng(seed)
 
@@ -205,13 +252,47 @@ def build_adjacency_matrix(nodes: int = 1000,
     return nx.adjacency_matrix(directed_graph, dtype=float, weight='weight')
 
 
+def check_prejudice_input(nodes,
+                          no_of_topics,
+                          mean_prejudice,
+                          std_prejudice,
+                          seed):
+
+    check_nodes(nodes)
+
+    if type(no_of_topics) is not int:
+        raise TypeError("Invalid type for number of topics: "
+                        f"{item_summary_for_error(no_of_topics)}. "
+                        "Expected integer number.")
+    if no_of_topics <= 0:
+        raise ValueError("Invalid number of topics: "
+                         f"{no_of_topics}. "
+                         "Expected positive integer number.")
+
+    if type(mean_prejudice) not in (int, float):
+        raise TypeError("Invalid mean prejudice value: "
+                        f"{item_summary_for_error(mean_prejudice)}. "
+                        "Expected a floating point.")
+
+    if type(std_prejudice) not in (int, float):
+        raise TypeError("Invalid type for standard deviation of prejudice "
+                        f"value: {item_summary_for_error(std_prejudice)}. "
+                        "Expected a floating point.")
+    if std_prejudice < 0:
+        raise ValueError("Invalid standard deviation of prejudice value: "
+                         f"{std_prejudice}. "
+                         "Expected a non-negative floating point.")
+
+    check_seed(seed)
+
+
 def build_prejudice_matrix(nodes: int = 1000,
                            no_of_topics: int = 1,
                            mean_prejudice: float = 0.5,
                            std_prejudice: float = 0.25,
                            seed: int = None):
 
-    """ Build a sparse matrix representing prejudice values in a
+    """ Build a dense matrix representing prejudice values in a
         Friedkin-Johnsen model (with custom number of topics).
 
         The prejudice values are drawn from a normal distribution and
@@ -257,56 +338,14 @@ def build_prejudice_matrix(nodes: int = 1000,
             - 'nodes' must be equal or higher than 3;
             - 'no_of_topics' must be higher than 0;
             - `std_prejudice` must be non-negative;
-            - 'seed' must be non-negative;
-
-        Warns
-        -----
-        UserWarning
-            If the number of `nodes` exceeds 100_000, the maximum
-            capped value for memory and performance purposes.
+            - 'seed' must be non-negative.
     """
 
-    if type(nodes) is not int:
-        raise TypeError("Invalid type for number of nodes: "
-                        f"{item_summary_for_error(nodes)}. "
-                        "Expected integer number.")
-    if nodes < 3:
-        raise ValueError("Invalid number of nodes: "
-                         f"{item_summary_for_error(nodes)}. "
-                         "Expected positive integer number equal "
-                         "or higher than 3.")
-
-    if type(no_of_topics) is not int:
-        raise TypeError("Invalid type for number of topics: "
-                        f"{item_summary_for_error(nodes)}. "
-                        "Expected integer number.")
-    if no_of_topics <= 0:
-        raise ValueError("Invalid number of topics: "
-                         f"{item_summary_for_error(nodes)}. "
-                         "Expected positive integer number.")
-
-    if (type(mean_prejudice) not in (int, float)):
-        raise TypeError("Invalid mean prejudice value: "
-                        f"{item_summary_for_error(mean_prejudice)}. "
-                        "Expected a floating point.")
-
-    if type(std_prejudice) not in (int, float):
-        raise TypeError("Invalid type for standard deviation of prejudice "
-                        f"value: {item_summary_for_error(std_prejudice)}. "
-                        "Expected a floating point.")
-    if std_prejudice < 0:
-        raise ValueError("Invalid standard deviation of prejudice value: "
-                         f"{item_summary_for_error(std_prejudice)}. "
-                         "Expected a non-negative floating point.")
-
-    if seed is not None and type(seed) is not int:
-        raise TypeError(f"Invalid type for input seed: "
-                        f"{item_summary_for_error(seed)}. "
-                        "Expected either 'None' or integer number.")
-    if type(seed) is int and seed < 0:
-        raise ValueError(f"Invalid input seed: "
-                         f"{item_summary_for_error(seed)}. "
-                         "Expected either 'None' or non-negative integer.")
+    check_prejudice_input(nodes=nodes,
+                          no_of_topics=no_of_topics,
+                          mean_prejudice=mean_prejudice,
+                          std_prejudice=std_prejudice,
+                          seed=seed)
 
     rng = np.random.default_rng(seed)
 
@@ -314,6 +353,28 @@ def build_prejudice_matrix(nodes: int = 1000,
                               scale=std_prejudice,
                               size=(nodes, no_of_topics)),
                    a_min=0, a_max=1)
+
+
+def check_susceptibility_input(nodes, mean_susceptibility,
+                               std_susceptibility, seed):
+    check_nodes(nodes)
+
+    if type(mean_susceptibility) not in (int, float):
+        raise TypeError(f"Invalid mean susceptibility value: "
+                        f"'{item_summary_for_error(mean_susceptibility)}'. "
+                        "Expected a floating point.")
+
+    if type(std_susceptibility) not in (int, float):
+        raise TypeError(f"Invalid type for standard deviation of "
+                        "susceptibility value: "
+                        f"'{item_summary_for_error(std_susceptibility)}'. "
+                        "Expected a floating point.")
+    if std_susceptibility < 0:
+        raise ValueError(f"Invalid standard deviation of susceptibility "
+                         f"value: '{std_susceptibility}'. "
+                         "Expected a non-negative floating point.")
+
+    check_seed(seed)
 
 
 def build_susceptibility_matrix(nodes: int = 1000,
@@ -349,8 +410,8 @@ def build_susceptibility_matrix(nodes: int = 1000,
 
         Returns
         -------
-        scipy.sparse.csr_array
-            Floating-point square matrix of shape (nodes, nodes).
+        scipy.sparse.dia_array
+            Floating-point diagonal matrix of shape (nodes, nodes).
 
         Raises
         ------
@@ -361,47 +422,13 @@ def build_susceptibility_matrix(nodes: int = 1000,
             If the constraints on the input values are not respected, namely:
             - 'nodes' must be equal or higher than 3;
             - `std_susceptibility` must be non-negative;
-            - 'seed' must be non-negative;
-
-        Warns
-        -----
-        UserWarning
-            If the number of `nodes` exceeds 100,000, the maximum
-            capped value for memory and performance purposes.
+            - 'seed' must be non-negative.
     """
 
-    if type(nodes) is not int:
-        raise TypeError("Invalid type for number of nodes: "
-                        f"{item_summary_for_error(nodes)}. "
-                        "Expected integer number.")
-    if nodes < 3:
-        raise ValueError("Invalid number of nodes: "
-                         f"{item_summary_for_error(nodes)}. "
-                         "Expected positive integer number equal or "
-                         "higher than 3.")
-
-    if (type(mean_susceptibility) not in (int, float)):
-        raise TypeError("Invalid mean susceptibility value: "
-                        f"'{type(mean_susceptibility)}'. "
-                        "Expected a floating point.")
-
-    if type(std_susceptibility) not in (int, float):
-        raise TypeError("Invalid type for standard deviation of "
-                        f"susceptibility value: '{type(std_susceptibility)}'. "
-                        "Expected a floating point.")
-
-    if std_susceptibility < 0:
-        raise ValueError("Invalid standard deviation of susceptibility value: "
-                         f"'{std_susceptibility}'. "
-                         "Expected a non-negative floating point.")
-
-    if seed is not None and type(seed) is not int:
-        raise TypeError(f"Invalid type for input seed: '{type(seed)}'. "
-                        "Expected either 'None' or integer number.")
-
-    if type(seed) is int and seed < 0:
-        raise ValueError(f"Invalid input seed: '{seed}'. "
-                         "Expected either 'None' or non-negative integer.")
+    check_susceptibility_input(nodes=nodes,
+                               mean_susceptibility=mean_susceptibility,
+                               std_susceptibility=std_susceptibility,
+                               seed=seed)
 
     rng = np.random.default_rng(seed)
 
