@@ -8,7 +8,8 @@ from scipy.stats import kstest
 
 from ..build_rng_matrices import (build_adjacency_matrix,
                                   build_prejudice_matrix,
-                                  build_susceptibility_matrix)
+                                  build_susceptibility_matrix,
+                                  check_nodes, check_seed)
 
 
 def csr_array_equal(array_a: sp.csr_array, array_b: sp.csr_array) -> bool:
@@ -34,6 +35,8 @@ def mean_row_half_difference(matrix: sp.csr_array):
         half_differences.append((row_values.max() - row_values.min()) / 2)
     return sum(half_differences) / len(half_differences)
 
+# -----
+
 
 class TestAdjacencyMatrix:
 
@@ -50,9 +53,9 @@ class TestAdjacencyMatrix:
             assert np.issubdtype(default_matrix.dtype, float)
 
         with subtests.test(msg="is connected"):
-            no_components = connected_components(csgraph=default_matrix,
-                                                 directed=False)[0]
-            assert no_components == 1
+            no_of_components = connected_components(csgraph=default_matrix,
+                                                    directed=False)[0]
+            assert no_of_components == 1
 
     @pytest.mark.parametrize("nodes, mean_node_degree", [
         (4, 3),
@@ -99,7 +102,7 @@ class TestAdjacencyMatrix:
         # ----
 
         with subtests.test(msg="correct mean node degree"):
-            # Edges are preserved by rewiring,
+            # Edge count is preserved while rewiring,
             # hence the mean degree is maintained
             no_edges = nodes * (mean_node_degree // 2)
             assert matrix.nnz == 2 * no_edges
@@ -195,115 +198,6 @@ class TestAdjacencyMatrix:
         matrix_b = build_adjacency_matrix(nodes=nodes, seed=seed_2)
 
         assert not csr_array_equal(matrix_a, matrix_b)
-
-    @pytest.mark.parametrize("name, value", [
-        ("nodes", "100"),
-        ("mean_node_degree", "5"),
-        ("prob_rewire_edge", "0.5"),
-        ("weights_variability", "0.8"),
-        ("min_edge_weight", "4"),
-        ("tries", "100"),
-        ("seed", "1"),
-
-        ("nodes", 53.5),
-        ("mean_node_degree", 4.75),
-        ("tries", 4.7),
-        ("seed", 3.9),
-    ])
-    def test_input_typeerror(self, name, value):
-        with pytest.raises(TypeError):
-            build_adjacency_matrix(**{name: value})
-
-    @pytest.mark.parametrize("nodes, mean_node_degree", [
-        (2, 2),
-        (4, 5),
-        (-12, 11)
-    ])
-    def test_nodes_valueerror(self, nodes, mean_node_degree):
-        # 'nodes' must be higher than 'mean_node_degree'
-        with pytest.raises(ValueError, match="Invalid number of nodes"):
-            build_adjacency_matrix(nodes=nodes,
-                                   mean_node_degree=mean_node_degree)
-
-    @pytest.mark.parametrize("mean_node_degree", [
-        1,
-        0,
-        -1,
-        -5
-    ])
-    def test_mean_node_degree_valueerror(self, mean_node_degree):
-        # `mean_node_degree` must be equal or greater than 2
-        with pytest.raises(ValueError, match="Invalid mean node degree value"):
-            build_adjacency_matrix(mean_node_degree=mean_node_degree)
-
-    @pytest.mark.parametrize("prob_rewire_edge", [
-        -1,
-        -0.5,
-        1.1,
-        10
-    ])
-    def test_prob_rewire_edge_valueerror(self, prob_rewire_edge):
-        # `prob_rewire_edge` must be a valid probability ([0,1])
-        with pytest.raises(ValueError,
-                           match="Invalid probability of edge rewiring"):
-            build_adjacency_matrix(prob_rewire_edge=prob_rewire_edge)
-
-    @pytest.mark.parametrize("seed", [
-        -10,
-        -5,
-        -1,
-    ])
-    def test_seed_valueerror(self, seed):
-        # 'seed' must be non-negative
-        with pytest.raises(ValueError, match="Invalid input seed"):
-            build_adjacency_matrix(seed=seed)
-
-    @pytest.mark.parametrize("tries", [
-        -10,
-        -1,
-        0,
-    ])
-    def test_tries_valueerror(self, tries):
-        # 'tries' must be higher than 0
-        with pytest.raises(ValueError,
-                           match="Invalid input 'number of tries'"):
-            build_adjacency_matrix(tries=tries)
-
-    @pytest.mark.parametrize("weights_variability", [
-        -1,
-        -0.5,
-        -0.1,
-    ])
-    def test_negative_weights_variability_warn(self, weights_variability):
-        # 'weights_variability' must be non-negative
-        with pytest.warns(UserWarning, match="Invalid value for variability "
-                          r"of edge weight:.* During process, the value "
-                          "will be assumed to be 0."):
-            build_adjacency_matrix(weights_variability=weights_variability)
-
-    @pytest.mark.parametrize("min_edge_weight", [
-        -1,
-        -0.5,
-        -0.1,
-    ])
-    def test_negative_min_edge_weight_warn(self, min_edge_weight):
-        # 'min_edge_weight' must be non-negative
-        with pytest.warns(UserWarning, match="Invalid value for minimum "
-                          r"edge weight:.*During process, the value"
-                          r"will be assumed to be the lowest possible.*"):
-            build_adjacency_matrix(min_edge_weight=min_edge_weight)
-
-    @pytest.mark.parametrize("min_edge_weight", [
-        0.5,
-        0.7,
-        1,
-    ])
-    def test_high_min_edge_weight_warn(self, min_edge_weight):
-        # 'min_edge_weight' must be non-negative
-        with pytest.warns(UserWarning, match=r"'min_edge_weight' value is.*"
-                          "which will result in all edges having the "
-                          "same weight."):
-            build_adjacency_matrix(min_edge_weight=min_edge_weight)
 
     def test_runtimeerror(self, monkeypatch):
         # A patch of the 'connected_watts_strogatz_graph', so that we simulate
@@ -425,65 +319,6 @@ class TestPrejudiceMatrix:
 
         assert not np.allclose(matrix_a, matrix_b)
 
-    @pytest.mark.parametrize("name, value", [
-        ("nodes", "100"),
-        ("no_of_topics", "5"),
-        ("mean_prejudice", "0.8"),
-        ("std_prejudice", "0.2"),
-        ("seed", "1"),
-
-        ("nodes", 53.5),
-        ("no_of_topics", 7.4),
-        ("seed", 3.9),
-    ])
-    def test_input_typeerror(self, name, value):
-        with pytest.raises(TypeError):
-            build_prejudice_matrix(**{name: value})
-
-    @pytest.mark.parametrize("nodes", [
-        -5,
-        -1,
-        0,
-        2
-    ])
-    def test_nodes_valueerror(self, nodes):
-        # 'nodes' must be equal or higher than 3
-        with pytest.raises(ValueError, match="Invalid number of nodes"):
-            build_prejudice_matrix(nodes=nodes)
-
-    @pytest.mark.parametrize("no_of_topics", [
-        -5,
-        -1,
-        0
-    ])
-    def test_no_of_topics_valueerror(self, no_of_topics):
-        # 'no_of_topics' must be higher than 0
-        with pytest.raises(ValueError, match="Invalid number of topics"):
-            build_prejudice_matrix(no_of_topics=no_of_topics)
-
-    @pytest.mark.parametrize("std_prejudice", [
-        -10,
-        -5,
-        -1,
-        -0.5
-    ])
-    def test_std_prejudice_valueerror(self, std_prejudice):
-        # `std_prejudice` must be non-negative
-        with pytest.raises(ValueError,
-                           match="Invalid standard deviation of "
-                           "prejudice value"):
-            build_prejudice_matrix(std_prejudice=std_prejudice)
-
-    @pytest.mark.parametrize("seed", [
-        -10,
-        -5,
-        -1,
-    ])
-    def test_seed_valueerror(self, seed):
-        # 'seed' must be non-negative
-        with pytest.raises(ValueError, match="Invalid input seed"):
-            build_prejudice_matrix(seed=seed)
-
 
 class TestSusceptibilityMatrix:
 
@@ -588,52 +423,183 @@ class TestSusceptibilityMatrix:
 
         assert not dia_array_equal(matrix_a, matrix_b)
 
-    @pytest.mark.parametrize("name, value", [
-        ("nodes", "100"),
-        ("mean_susceptibility", "0.8"),
-        ("std_susceptibility", "0.2"),
-        ("seed", "1"),
+# ------ helpers -------
 
-        ("nodes", 53.5),
-        ("seed", 3.9),
+
+class TestCheckNodes:
+
+    @pytest.mark.parametrize("nodes", [None, 4.5, [], object(), "str",
+                                       3+4j, (), {}])
+    def test_raises_if_not_int(self, nodes):
+        with pytest.raises(TypeError,
+                           match="Invalid type for number of nodes"):
+            build_adjacency_matrix(nodes=nodes)
+
+    @pytest.mark.parametrize("nodes, mean_node_degree", [
+        (2, 2),
+        (4, 5),
+        (-12, 11)
     ])
-    def test_input_typeerror(self, name, value):
+    def test_raises_if_incompatible_mean_node_degree(self,
+                                                     nodes,
+                                                     mean_node_degree):
+        with pytest.raises(ValueError,
+                           match=r"Invalid number of nodes: .*"
+                           "Expected integer number higher than mean node "
+                           r"degree.*"):
+            check_nodes(nodes=nodes,
+                        mean_node_degree=mean_node_degree)
+
+    @pytest.mark.parametrize("nodes", [2, 1, 0, -1, -5])
+    def test_raises_if_lower_than_3(self, nodes):
+        with pytest.raises(ValueError,
+                           match=r"Invalid number of nodes.*"
+                           "Expected positive integer number "
+                           "equal or higher than 3."):
+            check_nodes(nodes=nodes)
+
+
+class TestCheckSeed:
+
+    @pytest.mark.parametrize("seed", [4.5, [], object(), "str",
+                                      3+4j, (), {}])
+    def test_raises_if_not_int_or_none(self, seed):
+        with pytest.raises(TypeError, match="Invalid type for input seed"):
+            check_seed(seed=seed)
+
+    @pytest.mark.parametrize("seed", [-10, -5, -1])
+    def test_raises_if_negative(self, seed):
+        with pytest.raises(ValueError, match="Invalid input seed"):
+            check_seed(seed=seed)
+
+
+class TestCheckAdjacencyInput:
+
+    @pytest.mark.parametrize("input", [
+        "prob_rewire_edge", "weights_variability", "min_edge_weight"
+    ])
+    @pytest.mark.parametrize("type", [None, [], object(), "str",
+                                      3+4j, (), {}])
+    def test_raises_if_param_not_float(self, input, type):
         with pytest.raises(TypeError):
-            build_susceptibility_matrix(**{name: value})
+            build_adjacency_matrix(**{input: type})
 
-    @pytest.mark.parametrize("nodes", [
-        -5,
-        -1,
-        0,
-        2
+    @pytest.mark.parametrize("input", [
+        "mean_node_degree, tries"
     ])
-    def test_nodes_valueerror(self, nodes):
-        # 'nodes' must be equal or higher than 3
-        with pytest.raises(ValueError, match="Invalid number of nodes"):
-            build_susceptibility_matrix(nodes=nodes)
+    @pytest.mark.parametrize("type", [None, 4.5, [], object(), "str",
+                                      3+4j, (), {}])
+    def test_raises_if_param_not_int(self, input, type):
+        with pytest.raises(TypeError):
+            build_adjacency_matrix(**{input: type})
 
-    @pytest.mark.parametrize("std_susceptibility", [
-        -10,
-        -5,
-        -1,
-        -0.5
+    @pytest.mark.parametrize("prob_rewire_edge", [-1, -0.5, 1.1, 10])
+    def test_raises_for_invalid_prob_rewire_edge(self, prob_rewire_edge):
+        # It should be comprised in the [0,1] interval
+        with pytest.raises(ValueError,
+                           match="Invalid probability of edge rewiring"):
+            build_adjacency_matrix(prob_rewire_edge=prob_rewire_edge)
+
+    @pytest.mark.parametrize("tries", [-10, -1, 0])
+    def test_raises_if_tries_lower_than_zero(self, tries):
+        with pytest.raises(ValueError,
+                           match="Invalid input 'number of tries'"):
+            build_adjacency_matrix(tries=tries)
+
+    @pytest.mark.parametrize("weights_variability", [-1, -0.5, -0.1])
+    def test_warns_if_negative_weights_variability(self, weights_variability):
+        with pytest.warns(UserWarning,
+                          match="Invalid value for variability "
+                          r"of edge weight:.* During process, the value "
+                          "will be assumed to be 0."):
+            build_adjacency_matrix(weights_variability=weights_variability)
+
+    @pytest.mark.parametrize("min_edge_weight", [-1, -0.5, -0.1,])
+    def test_warns_if_negative_min_edge_weight(self, min_edge_weight):
+        with pytest.warns(UserWarning,
+                          match="Invalid value for minimum "
+                          r"edge weight:.*During process, the value "
+                          r"will be assumed to be the lowest possible.*"):
+            build_adjacency_matrix(min_edge_weight=min_edge_weight)
+
+    @pytest.mark.parametrize("min_edge_weight, mean_node_degree", [
+        (0.34, 3),
+        (0.1, 10),
+        (0.2, 5)
+        ])
+    def test_warns_min_weight_above_mean_degree(self,
+                                                min_edge_weight,
+                                                mean_node_degree):
+        with pytest.warns(UserWarning,
+                          match=r"'min_edge_weight' value is.*"
+                          "These values will result in a significant portion "
+                          "of the edges having the same weight."):
+            build_adjacency_matrix(min_edge_weight=min_edge_weight,
+                                   mean_node_degree=mean_node_degree)
+
+    @pytest.mark.parametrize("min_edge_weight", [0.5, 0.7, 1])
+    def test_warns_if_too_high_min_edge_weight(self, min_edge_weight):
+        with pytest.warns(UserWarning,
+                          match=r"'min_edge_weight' value is.*"
+                          "which will result in all edges having the "
+                          "same weight."):
+            with pytest.warns(UserWarning,
+                              match=r"'min_edge_weight' value is.*"
+                              "These values will result in a significant "
+                              "portion of the edges having the same weight."):
+                build_adjacency_matrix(min_edge_weight=min_edge_weight)
+
+
+class TestCheckSusceptibilityInput:
+
+    @pytest.mark.parametrize("input", [
+        "mean_prejudice", "std_prejudice"
     ])
-    def test_std_susceptibility_valueerror(self, std_susceptibility):
-        # `std_susceptibility` must be non-negative
+    @pytest.mark.parametrize("type", [None, [], object(), "str",
+                                      3+4j, (), {}])
+    def test_raises_if_param_not_float(self, input, type):
+        with pytest.raises(TypeError):
+            build_adjacency_matrix(**{input: type})
+
+    @pytest.mark.parametrize("input", [
+        "no_of_topics"
+    ])
+    @pytest.mark.parametrize("type", [None, 4.5, [], object(), "str",
+                                      3+4j, (), {}])
+    def test_raises_if_param_not_int(self, input, type):
+        with pytest.raises(TypeError):
+            build_susceptibility_matrix(**{input: type})
+
+    @pytest.mark.parametrize("no_of_topics", [-5, -1, 0])
+    def test_raises_if_no_of_topics_lower_than_1(self, no_of_topics):
+        with pytest.raises(ValueError, match="Invalid number of topics"):
+            build_prejudice_matrix(no_of_topics=no_of_topics)
+
+    @pytest.mark.parametrize("std_prejudice", [-5, -1, -0.5, -0.001])
+    def test_if_negative_std_prejudice(self, std_prejudice):
+        with pytest.raises(ValueError,
+                           match="Invalid standard deviation of "
+                           "prejudice value"):
+            build_prejudice_matrix(std_prejudice=std_prejudice)
+
+
+class TestCheckPrejudiceInput:
+
+    @pytest.mark.parametrize("input", [
+        "mean_susceptibility", "std_susceptibility"
+    ])
+    @pytest.mark.parametrize("type", [None, [], object(), "str",
+                                      3+4j, (), {}])
+    def test_raises_if_param_not_float(self, input, type):
+        with pytest.raises(TypeError):
+            build_prejudice_matrix(**{input: type})
+
+    @pytest.mark.parametrize("std_susceptibility", [-5, -1, -0.5, -0.001])
+    def test_raises_if_negative_std_susceptibility(self, std_susceptibility):
         with pytest.raises(ValueError,
                            match="Invalid standard deviation of "
                            "susceptibility value"):
             build_susceptibility_matrix(std_susceptibility=std_susceptibility)
-
-    @pytest.mark.parametrize("seed", [
-        -10,
-        -5,
-        -1,
-    ])
-    def test_seed_valueerror(self, seed):
-        # 'seed' must be non-negative
-        with pytest.raises(ValueError, match="Invalid input seed"):
-            build_susceptibility_matrix(seed=seed)
 
 
 if __name__ == "__main__":
