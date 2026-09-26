@@ -96,6 +96,10 @@ class TestAdjacencyMatrix:
         with subtests.test(msg="no self loops"):
             assert np.all(matrix.diagonal() == 0)
 
+        with subtests.test(msg="is stochastic"):
+            row_sums = matrix.sum(axis=1)
+            assert np.allclose(row_sums, 1)
+
         # ----
 
         with subtests.test(msg="correct mean node degree"):
