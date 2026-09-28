@@ -5,10 +5,30 @@ from .error_messages import truncate_item_for_error
 
 
 def validate_2d_matrix(return_if_matrix_is_none=None):
-    """ Decorator that groups what would otherwise be repetitive code
-        across numerous functions below.
-        In particular, handles None matrices as input and checks the
-        matrices' type and dimension.
+    """ Decorator that validates a function's matrix input.
+        The wrapped function is expected to have a 2D np.array object
+        as first positional argument.
+
+        The decorator groups the checking of None as input and of the
+        matrix type (np.ndarray), as well as its dimension (dim=2).
+
+        Parameters
+        ----------
+        return_if_matrix_is_none : any, optional
+            Value to return immediately if the matrix is None, bypassing the
+            decorated function entirely (default is None).
+
+        Returns
+        -------
+        Callable
+            A decorator that wraps a function.
+
+        Raises
+        ------
+        TypeError
+            If the matrix is not None and not an instance of np.ndarray.
+        ValueError
+            If the matrix isn't 2D.
     """
 
     def decorator(func):
