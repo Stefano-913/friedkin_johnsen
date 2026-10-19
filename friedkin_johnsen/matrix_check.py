@@ -157,9 +157,9 @@ def is_matrix_diag(matrix: np.ndarray | None = None) -> bool:
 
 
 def matrices_are_compatible(
-        adjacency_matrix: np.ndarray | None = None,
-        prejudice_matrix: np.ndarray | None = None,
-        susceptibility_matrix: np.ndarray | None = None) -> bool:
+        adjacency: np.ndarray | None = None,
+        prejudice: np.ndarray | None = None,
+        susceptibility: np.ndarray | None = None) -> bool:
     """ Checks if the input matrices can be part of the same Friedkin-Johnsen
         model.
         The model is comprised of an adjacency matrix (W); a prejudice
@@ -182,13 +182,13 @@ def matrices_are_compatible(
 
         Parameters
         ----------
-        adjacency_matrix : np.ndarray | None
+        adjacency : np.ndarray | None
             adjacency matrix (W)
 
-        prejudice_matrix: np.ndarray | None
+        prejudice: np.ndarray | None
             prejudice matrix (u)
 
-        susceptibility_matrix: np.ndarray | None
+        susceptibility: np.ndarray | None
             susceptibility matrix (Λ)
 
         Returns
@@ -207,9 +207,9 @@ def matrices_are_compatible(
     """
 
     matrices = {
-        "adjacency": adjacency_matrix,
-        "prejudice": prejudice_matrix,
-        "susceptibility": susceptibility_matrix,
+        "adjacency": adjacency,
+        "prejudice": prejudice,
+        "susceptibility": susceptibility,
     }
 
     valid_matrices = {matrix_name: matrix for matrix_name, matrix
@@ -238,19 +238,19 @@ def matrices_are_compatible(
                                  "numbers of users.\n"
                                  f"{error_users_overview}.")
 
-    if not is_square_matrix(adjacency_matrix):
+    if not is_square_matrix(adjacency):
         raise ValueError("Inserted adjacency matrix isn't "
                          "a square matrix.")
-    if not is_square_matrix(susceptibility_matrix):
+    if not is_square_matrix(susceptibility):
         raise ValueError("Inserted susceptibility matrix isn't "
                          "a square matrix.")
-    if not is_matrix_diag(susceptibility_matrix):
+    if not is_matrix_diag(susceptibility):
         raise ValueError("Inserted susceptibility matrix isn't "
                          "a diagonal matrix.")
 
     # If 'prejudice' is the only valid matrix, its dimension would
     # never be checked otherwise
-    matrix_is_2D(prejudice_matrix)
+    matrix_is_2D(prejudice)
 
     return True
 
