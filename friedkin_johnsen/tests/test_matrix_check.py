@@ -6,6 +6,7 @@ from ..matrix_check import (matrix_is_2D,
                             is_square_matrix,
                             get_number_of_users,
                             is_matrix_diag,
+                            highest_eigenvalues,
                             matrices_are_compatible,
                             has_matrix_zero_row)
 
@@ -118,6 +119,137 @@ class TestIsMatrixDiag:
 
     def test_empty_matrix(self):
         assert is_matrix_diag(np.empty((0, 0))) is True
+
+
+class TestHighestEigenvalues:
+    @pytest.mark.parametrize("matrix, eigs", [
+        ([[1]], [1]),
+        ([[1, 0], [0, 2]], [2, 1]),
+        ([[1, 0, 0], [0, -2, 0], [0, 0, 3]], [3, -2, 1]),
+
+        ([[4, 1], [2, 3]], [5, 2]),
+        ([[2, 1], [1, 2]], [3, 1]),
+
+        ([[4, 1], [2, -1]], [0.5*(3+np.sqrt(33)), 0.5*(3-np.sqrt(33))]),
+        ([[0, -1, 0], [1, 0, 0], [0, 0, 2]], [2, 1j, -1j])
+    ])
+    def test_few_eigenvalues(self, both_types, matrix, eigs):
+        eigenvalues = highest_eigenvalues(both_types(matrix))
+        assert np.allclose(eigenvalues, eigs)
+
+    @pytest.mark.parametrize("no_eigens, no_users", [
+        (1, 2),
+        (4, 5),
+        (3, 4)
+    ])
+    def test_toarray_if_too_few_users(self,
+                                      no_eigens,
+                                      no_users,
+                                      both_types,
+                                      monkeypatch):
+        # Even with a lower threshold to switch to sparse notation (1), if
+        # no_eigens >= no_users - 1 the dense notation is still used.
+        # To check that it doesn't use the sparse version, it is invalidated.
+
+        def mock_sparse_eigs(*args, **kwargs):
+            raise AssertionError("sparse notation should not be used now.")
+        monkeypatch.setattr("friedkin_johnsen.matrix_check.linalg.eigs",
+                            mock_sparse_eigs)
+
+        diagonal_values = range(no_users)
+        matrix = both_types(np.diag(diagonal_values))
+        eigenvalues = highest_eigenvalues(matrix,
+                                          no_eigens=no_eigens,
+                                          dense_limit=1)
+
+        assert np.allclose(np.sort(eigenvalues.real),
+                           diagonal_values[-no_eigens:])
+
+    @pytest.mark.parametrize("no_eigens, no_users", [
+        (1, 50),
+        (3, 50),
+        (10, 100)
+        ])
+    def test_sparse_notation(self,
+                             no_eigens,
+                             no_users,
+                             both_types,
+                             monkeypatch):
+
+        def mock_dense_eigvals(*args, **kwargs):
+            raise AssertionError("dense notation should not be used now.")
+        monkeypatch.setattr("friedkin_johnsen.matrix_check.np.linalg.eigvals",
+                            mock_dense_eigvals)
+
+        diagonal_values = range(no_users)
+        matrix = both_types(np.diag(diagonal_values))
+        eigenvalues = highest_eigenvalues(matrix,
+                                          no_eigens=no_eigens,
+                                          dense_limit=10)
+
+        assert np.allclose(np.sort(eigenvalues.real),
+                           diagonal_values[-no_eigens:])
+
+    @pytest.mark.parametrize("dense_limit", [1000, 10])
+    @pytest.mark.parametrize("no_eigs, no_users",
+                             [(3, 50), (5, 6), (10, 20)])
+    def test_eigs_in_decreasing_magnitude(self,
+                                          both_types,
+                                          dense_limit,
+                                          no_eigs,
+                                          no_users):
+        rng = np.random.default_rng(seed=1)
+        diagonal_values = np.arange(no_users)
+        rng.shuffle(diagonal_values)
+
+        matrix = both_types(np.diag(diagonal_values))
+        eigenvalues = highest_eigenvalues(matrix,
+                                          no_eigens=no_eigs,
+                                          dense_limit=dense_limit)
+
+        expected = sorted(diagonal_values, key=abs, reverse=True)[:no_eigs]
+        assert np.allclose(eigenvalues, expected)
+
+    def test_dense_limit_zero(self, both_types):
+        # The sparse solver is always used when possible.
+        eigenvalues = highest_eigenvalues(both_types(np.diag(range(50))),
+                                          no_eigens=3,
+                                          dense_limit=0)
+        assert np.allclose(eigenvalues, [49, 48, 47])
+
+    def test_none_case(self):
+        assert highest_eigenvalues(None) is None
+
+    def test_empty_matrix(self, both_types):
+        assert highest_eigenvalues(both_types(np.empty((0, 0)))) is None
+
+    @pytest.mark.parametrize("no_eigens", [2.5, "3", object()])
+    def test_raise_if_no_eigens_wrong_type(self, both_types, no_eigens):
+        with pytest.raises(TypeError):
+            highest_eigenvalues(both_types(np.eye(5)), no_eigens=no_eigens)
+
+    @pytest.mark.parametrize("no_eigens", [0, -1])
+    def test_raise_if_no_eigens_not_positive(self, both_types, no_eigens):
+        with pytest.raises(ValueError):
+            highest_eigenvalues(both_types(np.eye(5)), no_eigens=no_eigens)
+
+    @pytest.mark.parametrize("no_eigens", [6, 7])
+    def test_raise_if_no_eigens_higher_no_users(self, both_types, no_eigens):
+        with pytest.raises(ValueError):
+            highest_eigenvalues(both_types(np.eye(5)), no_eigens=no_eigens)
+
+    @pytest.mark.parametrize("dense_limit", [2.5, "10", None])
+    def test_raise_if_dense_limit_not_int(self, both_types, dense_limit):
+        with pytest.raises(TypeError):
+            highest_eigenvalues(both_types(np.eye(5)),
+                                no_eigens=2,
+                                dense_limit=dense_limit)
+
+    def test_raise_if_dense_limit_negative(self, both_types):
+        with pytest.raises(ValueError):
+            highest_eigenvalues(both_types(np.eye(5)),
+                                no_eigens=2,
+                                dense_limit=-1)
 
 # -----
 

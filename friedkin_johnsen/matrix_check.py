@@ -1,5 +1,5 @@
 import numpy as np
-from scipy.sparse import sparray, diags
+from scipy.sparse import sparray, issparse, linalg, diags
 from itertools import combinations
 from functools import wraps
 from .error_messages import truncate_item_for_error
@@ -161,6 +161,100 @@ def is_matrix_diag(matrix: np.ndarray | sparray | None = None) -> bool:
 
     if isinstance(matrix, sparray):
         return (matrix - diags(matrix.diagonal().astype(float))).nnz == 0
+
+
+@validate_2d_matrix(return_if_matrix_is_none=None)
+def highest_eigenvalues(matrix: np.ndarray | sparray,
+                        no_eigens: int = None,
+                        dense_limit: int = 1000) -> np.ndarray:
+    """ Computes the N highest eigenvalues in magnitude of the input 2D matrix.
+        The solver algorithms for the dense or the sparse formats are chosen
+        according to the most optimal/efficient scenario.
+
+        The dense solver is used in the following cases:
+        - if the matrix has a number of users lower than 'dense_limit' or
+        - if the number of requested eigenvalues 'no:eigens' is = matrix size.
+        For matrices with a higher number of users, when applicable, the sparse
+        notation is favoured.
+
+        Can also accept a 'None' matrix as argument, in which case the returned
+        value will also be 'None'.
+
+        Parameters
+        ----------
+        matrix : np.ndarray | sp.sparray | None
+            Matrix the eigenvalues of which are to be computed.
+
+        no_eigens : int, default = None
+            Number of eigenvalues to compute, required to be positive
+            and lower than the number of users.
+            If left as None, the entirety of the eigenvalues will be
+            computed.
+
+        dense_limit : int, default = 1000
+            Number of users below which the dense solver is used,
+            expected to be non-negative.
+
+        Returns
+        -------
+        eigenvalues : np.ndarray
+            Eigenvalues of the matrix, ordered by decreasing magnitude.
+
+        Raises
+        ------
+        TypeError
+            If the input matrix isn't of np.ndarray or sp.sparray type;
+            if no_eigs is lower than zero or above the matrix dimension
+            or if dense_limit is lower than zero.
+        ValueError
+            If the given matrix isn't 2D, if either no_eigs or dense_limit
+            aren't int type.
+        LinAlgError
+            If the algorithm for the dense format doesn't converge.
+        ArpackNoConvergence
+            If the algorithm for the sparse format doesn't converge.
+    """
+    no_users = get_number_of_users(matrix)
+
+    if no_users == 0:
+        return None
+
+    if no_eigens is None:
+        no_eigens = get_number_of_users(matrix)
+
+    if not isinstance(no_eigens, int):
+        raise TypeError(f"Input is of {type(no_eigens)} type, "
+                        "expected an int type.")
+    if no_eigens <= 0:
+        raise ValueError(f"Number of eigenvalues requested is {no_eigens}, "
+                         "expected a positive number.")
+    if no_eigens > no_users:
+        raise ValueError(f"Number of eigenvalues requested is {no_eigens}, "
+                         "expected it to be equal or lower than number of "
+                         f"users ({no_users}).")
+
+    if not isinstance(dense_limit, int):
+        raise TypeError(f"Input is of {type(dense_limit)} type, "
+                        "expected an int type.")
+    if dense_limit < 0:
+        raise ValueError(f"Dense limit is {dense_limit}, expected a "
+                         "non-negative value.")
+
+    if (no_users < dense_limit or
+            no_eigens >= no_users - 1):
+        matrix = matrix.toarray() if issparse(matrix) else np.asarray(matrix)
+        eigenvalues = np.linalg.eigvals(matrix)
+
+    else:
+        eigenvalues = linalg.eigs(matrix.astype(float),
+                                  k=no_eigens,
+                                  which="LM",
+                                  return_eigenvectors=False
+                                  )
+    # To order by magnitude while maintaining the correct sign,
+    # pass through indices.
+    indices = np.argsort(-np.abs(eigenvalues))[:no_eigens]
+    return eigenvalues[indices]
 
 # ---------------
 
