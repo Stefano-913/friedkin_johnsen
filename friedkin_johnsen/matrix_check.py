@@ -1,4 +1,5 @@
 import numpy as np
+from scipy.sparse import sparray, diags
 from itertools import combinations
 from functools import wraps
 from .error_messages import truncate_item_for_error
@@ -6,11 +7,12 @@ from .error_messages import truncate_item_for_error
 
 def validate_2d_matrix(return_if_matrix_is_none=None):
     """ Decorator that validates a function's matrix input.
-        The wrapped function is expected to have a 2D np.array object
+        The wrapped function is expected to have a 2D object
         as first positional argument.
 
         The decorator groups the checking of None as input and of the
-        matrix type (np.ndarray), as well as its dimension (dim=2).
+        matrix type (np.ndarray or sp.sparray), as well as its
+        dimension (dim=2).
 
         Parameters
         ----------
@@ -26,20 +28,23 @@ def validate_2d_matrix(return_if_matrix_is_none=None):
         Raises
         ------
         TypeError
-            If the matrix is not None and not an instance of np.ndarray.
+            If the matrix is not None and not an instance of either np.ndarray
+            or sp.sparray.
         ValueError
             If the matrix isn't 2D.
     """
 
     def decorator(func):
         @wraps(func)
-        def wrapper(matrix: np.ndarray | None = None, *args, **kwargs):
+        def wrapper(matrix: np.ndarray | sparray | None = None,
+                    *args,
+                    **kwargs):
             if matrix is None:
                 return return_if_matrix_is_none
 
-            if not isinstance(matrix, np.ndarray):
+            if not isinstance(matrix, (np.ndarray, sparray)):
                 raise TypeError(f"Input is of {type(matrix)} type, "
-                                "expected a np.ndarray matrix.")
+                                "expected a np.ndarray or sp.sparray matrix.")
 
             if matrix.ndim != 2:
                 raise ValueError(f"Input is of {matrix.ndim} dimension, "
@@ -50,13 +55,13 @@ def validate_2d_matrix(return_if_matrix_is_none=None):
 
 
 @validate_2d_matrix(return_if_matrix_is_none=True)
-def matrix_is_2D(matrix: np.ndarray | None = None) -> bool:
+def matrix_is_2D(matrix: np.ndarray | sparray | None = None) -> bool:
     """ Checks that the input matrix is 2D.
         Can also accept 'None' as argument, in which case the test will pass.
 
         Parameters
         ----------
-        matrix : np.ndarray | None
+        matrix : np.ndarray | sp.sparray | None
             Matrix the dimension of which is to be evaluated.
 
         Returns
@@ -66,7 +71,7 @@ def matrix_is_2D(matrix: np.ndarray | None = None) -> bool:
         Raises
         ------
         TypeError
-            If the input matrix isn't of np.ndarray type.
+            If the input matrix isn't of np.ndarray or sp.sparray type.
         ValueError
             If the given matrix isn't 2D.
     """
@@ -74,13 +79,13 @@ def matrix_is_2D(matrix: np.ndarray | None = None) -> bool:
 
 
 @validate_2d_matrix(return_if_matrix_is_none=True)
-def is_square_matrix(matrix: np.ndarray | None = None) -> bool:
+def is_square_matrix(matrix: np.ndarray | sparray | None = None) -> bool:
     """ Checks if the input 2D matrix is of square shape (n,n).
         Can also accept 'None' as argument, in which case the test will pass.
 
         Parameters
         ----------
-        matrix : np.ndarray | None
+        matrix : np.ndarray | sp.sparray | None
             Matrix the squareness of which is to be evaluated.
 
         Returns
@@ -90,7 +95,7 @@ def is_square_matrix(matrix: np.ndarray | None = None) -> bool:
         Raises
         ------
         TypeError
-            If the input matrix isn't of np.ndarray type.
+            If the input matrix isn't of np.ndarray or sp.sparray type.
         ValueError
             If the given matrix isn't 2D.
     """
@@ -99,7 +104,7 @@ def is_square_matrix(matrix: np.ndarray | None = None) -> bool:
 
 
 @validate_2d_matrix(return_if_matrix_is_none=None)
-def get_number_of_users(matrix: np.ndarray | None = None) -> int:
+def get_number_of_users(matrix: np.ndarray | sparray | None = None) -> int:
     """ Checks the number of users that the matrix implies in the context
         of a Friedkin-Johnsen model, concretely corresponding to the
         number of rows of every matrix involved.
@@ -108,7 +113,7 @@ def get_number_of_users(matrix: np.ndarray | None = None) -> int:
 
         Parameters
         ----------
-        matrix : np.ndarray | None
+        matrix : np.ndarray | sp.sparray | None
             Matrix from which the number of users is to be extracted.
 
         Returns
@@ -118,7 +123,7 @@ def get_number_of_users(matrix: np.ndarray | None = None) -> int:
         Raises
         ------
         TypeError
-            If the input matrix isn't of np.ndarray type.
+            If the input matrix isn't of np.ndarray or sp.sparray type.
         ValueError
             If the given matrix isn't 2D.
     """
@@ -127,13 +132,13 @@ def get_number_of_users(matrix: np.ndarray | None = None) -> int:
 
 
 @validate_2d_matrix(return_if_matrix_is_none=True)
-def is_matrix_diag(matrix: np.ndarray | None = None) -> bool:
+def is_matrix_diag(matrix: np.ndarray | sparray | None = None) -> bool:
     """ Checks if the input 2D matrix is diagonal.
         Can also accept 'None' as argument, in which case the test will pass.
 
         Parameters
         ----------
-        matrix : np.ndarray | None
+        matrix : np.ndarray | sp.sparray | None
             Matrix the diagonality of which is to be evaluated.
 
         Returns
@@ -143,7 +148,7 @@ def is_matrix_diag(matrix: np.ndarray | None = None) -> bool:
         Raises
         ------
         TypeError
-            If the input matrix isn't of np.ndarray type.
+            If the input matrix isn't of np.ndarray or sp.sparray type.
         ValueError
             If the given matrix isn't 2D.
     """
@@ -151,7 +156,11 @@ def is_matrix_diag(matrix: np.ndarray | None = None) -> bool:
     if not is_square_matrix(matrix):
         return False
 
-    return np.allclose(matrix, np.diag(np.diagonal(matrix)))
+    if isinstance(matrix, np.ndarray):
+        return np.allclose(matrix, np.diag(np.diagonal(matrix)))
+
+    if isinstance(matrix, sparray):
+        return (matrix - diags(matrix.diagonal().astype(float))).nnz == 0
 
 # ---------------
 

@@ -1,6 +1,7 @@
 import pytest
 import sys
 import numpy as np
+from scipy.sparse import csr_array
 from ..matrix_check import (matrix_is_2D,
                             is_square_matrix,
                             get_number_of_users,
@@ -9,17 +10,22 @@ from ..matrix_check import (matrix_is_2D,
                             has_matrix_zero_row)
 
 
+@pytest.fixture(params=[np.array, csr_array], ids=["ndarray", "sparray"])
+def both_types(request):
+    return request.param
+
+
 class TestMatrixIs2D:
     # Since all the following queries have the same decorator containing
     # the basic input checks, the exceptions raised in it will be tested
     # in matrix_is_2D(), which does basically nothing but call said decorator.
 
     @pytest.mark.parametrize("matrix", [
-        np.array([[1], [2]]),
-        np.array([[1, 2], [3, 4]])
+        [[1], [2]],
+        [[1, 2], [3, 4]]
     ])
-    def test_matrix_is_2D(self, matrix):
-        matrix_is_2D(matrix)
+    def test_matrix_is_2D(self, both_types, matrix):
+        matrix_is_2D(both_types(matrix))
 
     def test_none_case(self):
         assert matrix_is_2D(None) is True
@@ -33,7 +39,8 @@ class TestMatrixIs2D:
     def test_wrong_type(self, matrix):
         with pytest.raises(TypeError,
                            match=r"Input is of.*type, "
-                           "expected a np.ndarray matrix."):
+                           "expected a np.ndarray "
+                           "or sp.sparray matrix."):
             matrix_is_2D(matrix)
 
     @pytest.mark.parametrize("matrix", [
@@ -60,8 +67,8 @@ class TestIsSquareMatrix:
         ([[1, 2, 3], [4, 5, 6]], False),
         ([[1, 2], [3, 4], [5, 6]], False)
     ])
-    def test_is_square_matrix(self, matrix, result):
-        assert is_square_matrix(np.array(matrix)) == result
+    def test_is_square_matrix(self, both_types, matrix, result):
+        assert is_square_matrix(both_types(matrix)) == result
 
     def test_none_case(self):
         assert is_square_matrix(None) is True
@@ -82,8 +89,8 @@ class TestGetNumberOfUsers:
         ([[1, 1, 1], [2, 2, 2]], 2),
         ([[1, 1], [2, 2], [3, 3]], 3)
     ])
-    def test_get_number_of_users(self, matrix, result):
-        assert get_number_of_users(np.array(matrix)) == result
+    def test_get_number_of_users(self, both_types, matrix, result):
+        assert get_number_of_users(both_types(matrix)) == result
 
     def test_none_case(self):
         assert get_number_of_users(None) is None
@@ -103,8 +110,8 @@ class TestIsMatrixDiag:
         ([[1, 2], [3, 4], [5, 6]], False),
         ([[1, 0], [0, 0], [0, 1]], False)
     ])
-    def test_is_matrix_diag(self, matrix, result):
-        assert is_matrix_diag(np.array(matrix)) == result
+    def test_is_matrix_diag(self, both_types, matrix, result):
+        assert is_matrix_diag(both_types(matrix)) == result
 
     def test_none_case(self):
         assert is_matrix_diag(None) is True
