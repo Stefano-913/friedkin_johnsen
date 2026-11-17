@@ -4,22 +4,44 @@ import numpy as np
 import matplotlib.pyplot as plt
 import scipy as sp
 
+from ...opinion_models.friedkin_johnsen import FJModel
+
 from .helper_test_funcs import (rng_degroot_model,
+                                rng_fj_model,
                                 degroot_model_from_lists,
+                                fj_model_from_lists,
                                 plot_opinions)
 
 
+@pytest.fixture(params=[rng_degroot_model, rng_fj_model],
+                ids=["de_groot", "friedkin_johnsen"])
+def rng_model(request):
+    return request.param
+
+
+@pytest.fixture(params=[degroot_model_from_lists, fj_model_from_lists],
+                ids=["de_groot", "friedkin_johnsen"])
+def model_from_lists(request):
+    return request.param
+
+
+# -----
+
 @pytest.mark.parametrize("no_users", [10, 50, 1000])
 @pytest.mark.parametrize("no_of_topics", [1, 5, 10])
-def test_rng_model(no_users, no_of_topics, subtests):
+def test_rng_model(rng_model, no_users, no_of_topics, subtests):
 
-    model = rng_degroot_model(no_users=no_users,
-                              no_of_topics=no_of_topics,
-                              seed=2)
+    model = rng_model(no_users=no_users,
+                      no_of_topics=no_of_topics,
+                      seed=2)
 
     steps = 3000
     input_matrices = {"W": model.adjacency.copy(),
                       "u": model.prejudice.copy()}
+
+    if isinstance(model, FJModel):
+        input_matrices = {**input_matrices,
+                          "lambda": model.susceptibility.copy()}
 
     sim = model.simulate(steps=steps, snapshot_freq=100)
 
@@ -38,6 +60,9 @@ def test_rng_model(no_users, no_of_topics, subtests):
         assert (input_matrices["W"] != model.adjacency).nnz == 0
         assert (input_matrices["u"] == model.prejudice).all()
 
+        if isinstance(model, FJModel):
+            assert (input_matrices["lambda"] != model.susceptibility).nnz == 0
+
 
 @pytest.mark.parametrize("adjacency, prejudice, period", [
     # alternates [1, 0] and [0, 1]
@@ -54,7 +79,8 @@ def test_rng_model(no_users, no_of_topics, subtests):
     ([[0, 0, 0.5, 0.5], [0, 0, 0.5, 0.5], [0.5, 0.5, 0, 0], [0.5, 0.5, 0, 0]],
      [1, 0, 0, 0],
      2)])
-def test_oscillating_model(adjacency,
+def test_oscillating_model(model_from_lists,
+                           adjacency,
                            prejudice,
                            period,
                            subtests):
@@ -68,7 +94,7 @@ def test_oscillating_model(adjacency,
         raise ValueError("The test isn't significant, as the simulation is "
                          "stopped before the periodic behaviour is reached.")
 
-    model = degroot_model_from_lists(adjacency, prejudice)
+    model = model_from_lists(adjacency, prejudice)
 
     # Snapshot frequency is lowest possible so the alternating of states
     # is visible in the simulation
@@ -92,13 +118,17 @@ def test_oscillating_model(adjacency,
 @pytest.mark.filterwarnings(r"ignore:Gtk.* is deprecated:DeprecationWarning")
 @pytest.mark.filterwarnings(r"ignore:GLib.* is deprecated:DeprecationWarning")
 @pytest.mark.parametrize("no_users", [50, 100, 200, 500])
-def test_graph_opinion_evolution(no_users):
+def test_graph_opinion_evolution(rng_model, no_users):
 
     # This test has no assert and passes regardless.
-    model = rng_degroot_model(no_users=no_users,
-                              no_of_topics=1,
-                              seed=1,
-                              mean_node_degree=10)
+    # Used to discover the correlation between λ and u in case of
+    # wrong seeding (susceptibility and prejudice sharing the same
+    # seed, see 'rng_model_matrices()' in the 'helper_test_funcs file'
+    # for more info)
+    model = rng_model(no_users=no_users,
+                      no_of_topics=1,
+                      seed=1,
+                      mean_node_degree=10)
     steps = 10_000
 
     # High tolerance so that the stabilization period (i.e. "tails"
@@ -110,7 +140,8 @@ def test_graph_opinion_evolution(no_users):
 @pytest.mark.parametrize("save_graphs", [True])
 @pytest.mark.parametrize("no_users", [500, 1000, 2000])
 @pytest.mark.parametrize("no_of_topics", [1, 2, 4])
-def test_speed_of_convergence(no_users,
+def test_speed_of_convergence(rng_model,
+                              no_users,
                               no_of_topics,
                               save_graphs,
                               subtests):
@@ -119,10 +150,10 @@ def test_speed_of_convergence(no_users,
     # extracted from the simulation (via fit).
 
     # lowering mean node degree to slow down the convergence
-    model = rng_degroot_model(no_users=no_users,
-                              no_of_topics=no_of_topics,
-                              seed=2,
-                              mean_node_degree=5)
+    model = rng_model(no_users=no_users,
+                      no_of_topics=no_of_topics,
+                      seed=2,
+                      mean_node_degree=5)
 
     steps = 10_000
     assert model.is_convergent()
@@ -191,7 +222,12 @@ def test_speed_of_convergence(no_users,
         ax.legend()
         ax.grid(True, alpha=0.3)
 
-        plot_dir = "friedkin_johnsen/tests/plots/degroot_model/convergence"
+        if isinstance(model, FJModel):
+            model_name = "fj_model"
+        else:
+            model_name = "degroot_model"
+
+        plot_dir = f"friedkin_johnsen/tests/plots/{model_name}/convergence"
         os.makedirs(plot_dir, exist_ok=True)
         fig.savefig(plot_dir + f"/users_{no_users}_topics_{no_of_topics}.png",
                     dpi=120)

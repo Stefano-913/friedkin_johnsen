@@ -2,10 +2,12 @@ import os
 import numpy as np
 import random
 import matplotlib.pyplot as plt
-from scipy.sparse import csr_array
+from scipy.sparse import csr_array, dia_array
 from ...opinion_models.de_groot import DeGrootModel
+from ...opinion_models.friedkin_johnsen import FJModel
 from ...build_rng_matrices import (build_adjacency_matrix,
-                                   build_prejudice_matrix)
+                                   build_prejudice_matrix,
+                                   build_susceptibility_matrix)
 
 
 def rng_model_matrices(no_users, no_of_topics, seed=1, mean_node_degree=None):
@@ -13,6 +15,10 @@ def rng_model_matrices(no_users, no_of_topics, seed=1, mean_node_degree=None):
         mean_node_degree = random.Random(seed).randint(
             3, max(4, int(np.sqrt(no_users))))
 
+    # Seeds need to be different, since prejudice and susceptibility use
+    # the same generation method. If they used the same, the FJ model would
+    # degenerate in a state where a node's prejudice is equal to its
+    # susceptibility (λ = u for each node)
     adjacency = build_adjacency_matrix(
          nodes=no_users,
          mean_node_degree=mean_node_degree,
@@ -23,9 +29,13 @@ def rng_model_matrices(no_users, no_of_topics, seed=1, mean_node_degree=None):
         no_of_topics=no_of_topics,
         seed=seed+1
         )
-
+    susceptibility = build_susceptibility_matrix(
+        nodes=no_users,
+        seed=seed+2
+        )
     return {"adjacency": adjacency,
-            "prejudice": prejudice}
+            "prejudice": prejudice,
+            "susceptibility": susceptibility}
 
 
 def rng_degroot_model(no_users,
@@ -94,6 +104,49 @@ def rng_degroot_model(no_users,
     raise ValueError("Couldn't generate a De Groot model with consensus "
                      f"in the given number of tries ({max_tries}).")
 
+
+def rng_fj_model(no_users, no_of_topics, seed=1, mean_node_degree=None):
+    """ Returns a Friedkin-Johnsen model with random adjacency, prejudice
+        and susceptibility matrices for testing purposes;
+        the model is convergent (see "Notes" section).
+
+        Parameters
+        ----------
+        no_users : int
+            Number of users in the model.
+
+        no_of_topics : int
+            Number of topics considered in the simulation.
+
+        seed : int, default=1
+            Seed for the random number generator that drives the samples.
+
+        mean_node_degree : float or None, default=None
+            Mean degree of the nodes in the adjacency matrix.
+
+    Returns
+    -------
+    FJModel
+        A convergent Friedkin_Johnsen model.
+
+    Notes
+    -----
+    As long as the model does not fall in the DeGroot special case, the
+    convergence is guaranteed thanks to the connectedness of the graph obtained
+    by 'build_adjacency_matrix', which is sufficient condition on its own.
+    The risk of accidentally falling in the De Groot case (by randomly sampling
+    all susceptibilities as close to 1 as the tolerance requires) is considered
+    to be negligible.
+    """
+    matrix_dict = rng_model_matrices(no_users,
+                                     no_of_topics,
+                                     seed=seed,
+                                     mean_node_degree=mean_node_degree)
+    return FJModel(adjacency=matrix_dict["adjacency"],
+                   prejudice=matrix_dict["prejudice"],
+                   susceptibility=matrix_dict["susceptibility"])
+
+
 def degroot_model_from_lists(adjacency, prejudice):
 
     adjacency = csr_array(adjacency)
@@ -101,6 +154,26 @@ def degroot_model_from_lists(adjacency, prejudice):
 
     return DeGrootModel(adjacency=adjacency,
                         prejudice=prejudice)
+
+
+def fj_model_from_lists(adjacency, prejudice, susceptibility=None):
+
+    adjacency = csr_array(adjacency)
+    prejudice = np.asarray(prejudice)
+
+    # When there are tests in common between Degroot and FJ,
+    # usually FJ is under the degenerate case of
+    # susceptibility = [1, 1, ... 1] anyways and this allows
+    # for an easier parametrization.
+
+    if susceptibility is None:
+        susceptibility = [1]*len(prejudice)
+
+    susceptibility = dia_array(np.diag(susceptibility))
+
+    return FJModel(adjacency=adjacency,
+                   prejudice=prejudice,
+                   susceptibility=susceptibility)
 
 
 def plot_opinions(model, sim, title=""):
@@ -123,10 +196,15 @@ def plot_opinions(model, sim, title=""):
     ax.set_ylabel('Opinion values')
     ax.grid(True, alpha=0.3)
 
+    if isinstance(model, FJModel):
+        model_name = "fj_model"
+    else:
+        model_name = "degroot_model"
+
     if title != "":
         title = title + "_"
 
-    plot_directory = f"friedkin_johnsen/tests/plots/degroot_model/evolve_opinion"
+    plot_directory = f"friedkin_johnsen/tests/plots/{model_name}/evolve_opinion"
     os.makedirs(plot_directory, exist_ok=True)
     fig.savefig(plot_directory + f"/{title}users_{model.no_users}.png",
                 dpi=120)
