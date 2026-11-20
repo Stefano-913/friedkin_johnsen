@@ -2,17 +2,7 @@ import pytest
 from pytest import fixture
 import sys
 import numpy as np
-from scipy.sparse import csr_array
-from ...opinion_models.de_groot import DeGrootModel
-
-
-def degroot_model_from_lists(adjacency, prejudice):
-
-    adjacency = csr_array(adjacency)
-    prejudice = np.asarray(prejudice)
-
-    return DeGrootModel(adjacency=adjacency,
-                        prejudice=prejudice)
+from .helper_test_funcs import degroot_model_from_lists
 
 
 @fixture
