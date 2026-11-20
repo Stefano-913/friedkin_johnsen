@@ -106,7 +106,7 @@ def normalize_prejudice_matrix(
     min_value = matrix.min()
 
     if not np.allclose(min_value, max_value):
-        matrix[:] = matrix - min_value / (max_value-min_value)
+        matrix[:] = (matrix - min_value) / (max_value-min_value)
     else:
         n_users = get_number_of_users(matrix)
         matrix[:] = np.full((n_users, n_users), 1)
@@ -161,7 +161,7 @@ def normalize_susceptibility_diagonal(
 
     if not np.allclose(min_value, max_value):
         np.fill_diagonal(matrix,
-                         matrix.diagonal() - min_value / (max_value-min_value))
+                         (matrix.diagonal() - min_value) / (max_value-min_value))
     else:
         n_users = get_number_of_users(matrix)
         np.fill_diagonal(matrix, np.full((n_users), 1))
