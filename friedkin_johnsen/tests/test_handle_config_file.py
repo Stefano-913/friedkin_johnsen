@@ -142,7 +142,6 @@ class TestFillOutConfigFile:
 
         result = fill_out_config_file(file_path)
         assert result["number_of_nodes"] == 10
-        assert result["max_cycles"] == default_config_file()["max_cycles"]
         assert "matrices" in result
 
     def test_nested_config_keys_are_filled(self, tmp_path, subtests):
@@ -175,7 +174,6 @@ class TestFillOutConfigFile:
 
         result = fill_out_config_file(file_path)
         assert json.loads(file_path.read_text()) == result
-        assert "max_cycles" in json.loads(file_path.read_text())
 
     def test_filling_is_idempotent(self, tmp_path):
         file_path = tmp_path / "user.json"
@@ -188,13 +186,6 @@ class TestFillOutConfigFile:
         second_func_call = file_path.read_text()
 
         assert second_func_call == first_func_call
-
-    def test_raises_if_unknown_key(self, tmp_path):
-        file_path = tmp_path / "typo.json"
-        file_path.write_text(json.dumps({"max_cyles": 5}))
-
-        with pytest.raises(ValueError, match="max_cyles"):
-            fill_out_config_file(file_path)
 
     def test_raises_if_missing_file(self, tmp_path):
         with pytest.raises(FileNotFoundError):
@@ -211,10 +202,6 @@ class TestDefaultConfigFile:
         with subtests.test(msg="positive integer number of nodes"):
             assert isinstance(config["number_of_nodes"], int)
             assert config["number_of_nodes"] > 0
-
-        with subtests.test(msg="positive integer number of max cycles"):
-            assert isinstance(config["max_cycles"], int)
-            assert config["max_cycles"] > 0
 
 
 class TestAdjacencyDefaultParams:

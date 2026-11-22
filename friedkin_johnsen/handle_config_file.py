@@ -54,7 +54,6 @@ def default_config_file() -> dict:
     return {
         "mtx_files_directory": None,
         "number_of_nodes": 1000,
-        "max_cycles": 10_000,
         "matrices": {
             "adjacency": adjacency_default_params(),
             "prejudice": prejudice_default_params(),
