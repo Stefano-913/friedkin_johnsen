@@ -1,0 +1,61 @@
+[project]
+name = 'friedkin_johnsen'
+version = '0.0.1'
+authors = [
+  { name='Stefano Liazza', email='stefano.liazza@studio.unibo.it' },
+]
+description = 'Simulation of Friedkin-Johnsen opinion model.'
+readme = 'README.md'
+requires-python = '>=3.5'
+license = {text = 'MIT'}
+keywords = [
+  'simulation',
+  'opinion models',
+  'de-groot',
+  'friedkin-johnsen',
+  'software-development',
+]
+maintainers = [
+  { name='Stefano Liazza', email='stefano.liazza@studio.unibo.it' },
+]
+classifiers = [
+  'Natural Language :: English',
+  'Operating System :: MacOS :: MacOS X',
+  'Operating System :: POSIX',
+  'Operating System :: POSIX :: Linux',
+  'Operating System :: Microsoft :: Windows',
+  'Programming Language :: Python',
+  'Programming Language :: Python :: 3',
+  'Programming Language :: Python :: 3.12',
+  'Programming Language :: Python :: 3.13',
+  'Programming Language :: Python :: 3.14',
+  'Programming Language :: Python :: Implementation :: CPython',
+  'Programming Language :: Python :: Implementation :: PyPy'
+]
+dependencies = [
+  "matplotlib>=3.11.2",
+  "networkx>=3.6.1",
+  "numpy>=2.5.5",
+  "pathos>=0.3.5",
+  "pytest>=9.1.1",
+  "scipy>=1.18.1",
+]
+
+[project.scripts]
+friedkin-johnsen = "friedkin_johnsen.__main__:main"
+
+[project.optional-dependencies]
+dev = [
+  'flake8',
+  'pytest',
+]
+
+[project.urls]
+'Homepage' = 'https://github.com/Stefano-913/friedkin_johnsen'
+'Bug Tracker' = 'https://github.com/Stefano-913/friedkin_johnsen/issues'
+
+[build-system]
+requires = [
+  'setuptools>=42',
+]
+build-backend = 'setuptools.build_meta'
