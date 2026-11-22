@@ -118,12 +118,16 @@ def normalize_prejudice_matrix(
 def normalize_susceptibility_diagonal(
         matrix: np.ndarray[float] | None = None
         ) -> None:
-    """ Normalizes in place the diagonal values of a floating-point
-        susceptibility matrix to [0, 1].
+    """ Modifies in place the diagonal values of a floating-point
+        susceptibility matrix such that they're inside the [0, 1] interval.
 
-        The diagonal entries of the matrix are rescaled so that the [0,1]
-        interval is used to the fullest.
-        If all diagonal entries are equal, the diagonal is set to all ones.
+        If the the diagonal entries of the matrix lay outside of it, a warning
+        is issued to the user and the values are rescaled so that the [0,1]
+        interval is used to the fullest (if all diagonal entries are equal,
+        the diagonal is set to all ones).
+
+        If the diagonal values reside inside [0, 1] to begin with, no change
+        to the original matrix occurs.
 
         Parameters
         ----------
@@ -142,6 +146,13 @@ def normalize_susceptibility_diagonal(
             - If the given matrix isn't 2D;
             - If the given matrix isn't diagonal;
             - If the dtype of the matrix values isn't floating point.
+
+        Warns
+        -----
+        UserWarning
+            If the matrix contains diagonal values outside of the [0, 1]
+            interval, which will cause them to be normalized with a
+            linear transform so that min_value->0, max_value->1.
     """
     if not np.issubdtype(matrix.dtype, np.floating):
         raise ValueError("Expected np.array of floating point numbers, "
@@ -159,9 +170,20 @@ def normalize_susceptibility_diagonal(
     max_value = diag_values.max()
     min_value = diag_values.min()
 
+    if np.allclose(diag_values, np.clip(diag_values, 0, 1)):
+        return None
+
+    warnings.warn("Diagonal entries of the susceptibility matrix lie outside "
+                  f"of the [0, 1] interval (min={min_value:.4g}, "
+                  f"max={max_value:.4g}) and the matrix has been rescaled "
+                  "with a linear transform such that the [0, 1] interval is "
+                  "used fully (min->0, max->1).",
+                  UserWarning)
+
     if not np.allclose(min_value, max_value):
+        value_diff = max_value-min_value
         np.fill_diagonal(matrix,
-                         (matrix.diagonal() - min_value) / (max_value-min_value))
+                         (matrix.diagonal() - min_value) / value_diff)
     else:
         n_users = get_number_of_users(matrix)
         np.fill_diagonal(matrix, np.full((n_users), 1))

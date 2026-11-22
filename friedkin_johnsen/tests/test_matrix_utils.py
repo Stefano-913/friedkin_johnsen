@@ -124,22 +124,36 @@ class TestNormalizePrejudiceMatrix:
 
 class TestNormalizeSusceptibilityMatrix:
     @pytest.mark.parametrize("matrix, expected_result", [
-        ([1, 1], [1, 1]),
-        ([0, 0.5, 0.75, 1], [0, 0.5, 0.75, 1]),
-
         ([1, 3, 4, 1], [0, 2/3, 1, 0]),
         ([0, 1, 5, 3], [0, 1/5, 1, 3/5]),
         ([0, 6, 9, 3], [0, 2/3, 1, 1/3]),
 
-        ([0, 0.5, 0.25, 0.3], [0, 1, 0.5, 0.6]),
-        ([0.001, 0, 0.0002, 0.0005], [1, 0, 0.2, 0.5])
+        ([0, 0.5, 1.25, 0.3], [0, 0.5/1.25, 1, 0.3/1.25])
     ])
     def test_correct_normalization(self, matrix, expected_result):
         matrix = np.diag(matrix).astype(float)
         expected_result = np.diag(expected_result).astype(float)
 
-        normalize_susceptibility_diagonal(matrix)
+        with pytest.warns(UserWarning,
+                          match=r"Diagonal entries of the susceptibility.*"):
+            normalize_susceptibility_diagonal(matrix)
+
         assert np.allclose(matrix, expected_result)
+
+    @pytest.mark.parametrize("matrix", [
+        [1, 1],
+        [0, 0.5, 0.75, 1],
+
+        [0, 0.5, 0.25, 0.3],
+        [0.001, 0, 0.0002, 0.0005]
+    ])
+    def test_avoids_normalization_if_already_in_interval(self, matrix):
+        matrix = np.diag(matrix).astype(float)
+        matrix_copy = matrix.copy()
+
+        normalize_susceptibility_diagonal(matrix_copy)
+        assert np.allclose(matrix, matrix_copy)
+
 
     @pytest.mark.parametrize("matrix, expected_result", [
             ([0, -1, 0, -1], [1, 0, 1, 0]),
@@ -159,7 +173,10 @@ class TestNormalizeSusceptibilityMatrix:
         matrix = np.diag(matrix).astype(float)
         expected_result = np.diag(expected_result).astype(float)
 
-        normalize_susceptibility_diagonal(matrix)
+        with pytest.warns(UserWarning,
+                          match=r"Diagonal entries of the susceptibility.*"):
+            normalize_susceptibility_diagonal(matrix)
+
         assert np.allclose(matrix, expected_result)
 
     def test_none_case(self):
