@@ -396,24 +396,32 @@ class TestGetMatrices:
             tmp_path,
             {"adjacency": "[[0, 1, 0], [1, 0, 1], [1, 1, 1]]",
              "prejudice": "[[0.2], [0.5], [0.9]]",
-             "susceptibility": "[[0.5, 0, 0], [0, 0.5, 0], [0, 0, 0.5]]"},
-             no_of_nodes=10
-             )
- 
-        matrices = get_matrices(directory=tmp_path / "file")
- 
+             "susceptibility": "[[1, 0, 0], [0, 1.5, 0], [0, 0, -0.5]]"},
+            no_of_nodes=10
+            )
+        with pytest.warns(UserWarning,
+                          match=r"Diagonal entries of the susceptibility.*"):
+            matrices = get_matrices(directory=tmp_path / "file")
+
         with subtests.test(msg="loaded matrices have the right type"):
             assert isinstance(matrices["adjacency"], csr_array)
             assert isinstance(matrices["prejudice"], np.ndarray)
             assert isinstance(matrices["susceptibility"], dia_array)
- 
+
         with subtests.test(msg="loaded adjacency matrix is normalized"):
             assert np.allclose(matrices["adjacency"].toarray(),
                                [[0, 1, 0], [0.5, 0, 0.5], [1./3, 1./3, 1./3]])
- 
+
+        with subtests.test(msg="loaded prejudice matrix is normalized"):
+            assert np.allclose(matrices["prejudice"], [[0.], [3./7], [1]])
+
+        with subtests.test(msg="loaded susceptibility matrix is normalized"):
+            assert np.allclose(matrices["susceptibility"].toarray(),
+                               [[0.75, 0, 0], [0, 1, 0], [0, 0, 0]])
+
         with subtests.test(msg="all matrices use the loaded number of users"):
             assert all(mtx.shape[0] == 3 for mtx in matrices.values())
- 
+
     def test_raises_missing_config_file(self, tmp_path):
         with pytest.raises(FileNotFoundError):
             get_matrices(directory=tmp_path / "file")
