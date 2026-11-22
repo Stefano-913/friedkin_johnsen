@@ -107,6 +107,17 @@ class TestNormalizePrejudiceMatrix:
         normalize_prejudice_matrix(matrix)
         assert np.allclose(matrix, expected_result)
 
+    @pytest.mark.parametrize("matrix, expected_result", [
+        ([[-2, -2], [-2, -2]], [[1, 1], [1, 1]]),
+
+        ([[7.5, 7.5, 7.5], [7.5, 7.5, 7.5], [7.5, 7.5, 7.5]],
+         [[1, 1, 1], [1, 1, 1], [1, 1, 1]])
+    ])
+    def test_normalization_all_same_value(self, matrix, expected_result):
+        matrix = np.array(matrix, dtype=float)
+        normalize_prejudice_matrix(matrix)
+        assert np.allclose(matrix, expected_result)
+
     def test_none_case(self):
         assert normalize_prejudice_matrix(None) is None
 
@@ -154,7 +165,6 @@ class TestNormalizeSusceptibilityMatrix:
         normalize_susceptibility_diagonal(matrix_copy)
         assert np.allclose(matrix, matrix_copy)
 
-
     @pytest.mark.parametrize("matrix, expected_result", [
             ([0, -1, 0, -1], [1, 0, 1, 0]),
             ([0, -1, 0, 1], [0.5, 0, 0.5, 1]),
@@ -170,6 +180,20 @@ class TestNormalizeSusceptibilityMatrix:
     def test_correct_normalizazion_negative_values(self,
                                                    matrix,
                                                    expected_result):
+        matrix = np.diag(matrix).astype(float)
+        expected_result = np.diag(expected_result).astype(float)
+
+        with pytest.warns(UserWarning,
+                          match=r"Diagonal entries of the susceptibility.*"):
+            normalize_susceptibility_diagonal(matrix)
+
+        assert np.allclose(matrix, expected_result)
+
+    @pytest.mark.parametrize("matrix, expected_result", [
+        ([-2, -2], [1, 1]),
+        ([7.5, 7.5, 7.5], [1, 1, 1])
+    ])
+    def test_normalization_all_same_value(self, matrix, expected_result):
         matrix = np.diag(matrix).astype(float)
         expected_result = np.diag(expected_result).astype(float)
 
