@@ -130,7 +130,7 @@ class TestAdjacencyMatrix:
                 )
         assert mean_row_half_difference(matrix) < 0.2
 
-    def test_stuff(self):
+    def test_weights_variability_is_monotonically_increasing(self):
         variabilities = [0.01, 0.1, 1, 10, 100]
 
         semi_differences = [
