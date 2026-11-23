@@ -229,8 +229,7 @@ class TestFJModelLimitSolution:
 
     def test_correct_limit_solution(self, model):
         assert np.allclose(model.calculate_limit_solution(),
-                           [0.134, 0.55, 0.79],
-                           atol=1e-3)
+                           [0.134065, 0.550463, 0.790187])
 
     def test_limit_of_max_stubborness_is_prejudice(self, model):
         model.susceptibility = dia_array(np.diag([0, 0, 0]))
@@ -284,6 +283,29 @@ class TestFJModelLimitSolution:
 
         assert np.allclose(not_asympt_stable_model.calculate_limit_solution(),
                            np.array(expected_result))
+
+    def test_use_simplified_formula(self, model, monkeypatch):
+
+        # The central part of the more complex formula is
+        # invalidated
+        def mock_de_groot_limit_solution(*args, **kwargs):
+            raise AssertionError("The simplified formula should now "
+                                 "be used.")
+
+        monkeypatch.setattr("friedkin_johnsen.opinion_models.friedkin_johnsen."
+                            "DeGrootModel.calculate_limit_solution",
+                            mock_de_groot_limit_solution)
+
+        model.calculate_limit_solution()
+
+    def test_raise_if_wrong_limit_solution_formula(self):
+        model = fj_model_from_lists(adjacency=[[0, 1], [1, 0]],
+                                    prejudice=[0.5, 0.3],
+                                    susceptibility=[1, 1])
+
+        with pytest.raises(RuntimeError,
+                           match="Applied simplified formula"):
+            model._simplified_limit_solution()
 
 
 class TestFJModelConvergenceRate:
