@@ -491,17 +491,26 @@ class TestCheckAdjacencyInput:
     @pytest.mark.parametrize("type", [None, [], object(), "str",
                                       3+4j, (), {}])
     def test_raises_if_param_not_float(self, input, type):
-        with pytest.raises(TypeError):
+        with pytest.raises(TypeError,
+                           match=r"Invalid .* floating.*"):
             build_adjacency_matrix(**{input: type})
 
     @pytest.mark.parametrize("input", [
-        "mean_node_degree, tries"
+        "mean_node_degree", "tries"
     ])
     @pytest.mark.parametrize("type", [None, 4.5, [], object(), "str",
                                       3+4j, (), {}])
     def test_raises_if_param_not_int(self, input, type):
-        with pytest.raises(TypeError):
+        with pytest.raises(TypeError,
+                           match=r"Invalid .* integer .*"):
             build_adjacency_matrix(**{input: type})
+
+    @pytest.mark.parametrize("value", [-1, 0, 1])
+    def test_raises_if_mean_node_degree_lower_than_2(self, value):
+        with pytest.raises(ValueError,
+                           match=r"Invalid mean node degree value:.*"
+                           "Expected integer number higher or equal than 2."):
+            build_adjacency_matrix(mean_node_degree=value)
 
     @pytest.mark.parametrize("prob_rewire_edge", [-1, -0.5, 1.1, 10])
     def test_raises_for_invalid_prob_rewire_edge(self, prob_rewire_edge):
@@ -560,7 +569,7 @@ class TestCheckAdjacencyInput:
                 build_adjacency_matrix(min_edge_weight=min_edge_weight)
 
 
-class TestCheckSusceptibilityInput:
+class TestCheckPrejudiceInput:
 
     @pytest.mark.parametrize("input", [
         "mean_prejudice", "std_prejudice"
@@ -568,8 +577,9 @@ class TestCheckSusceptibilityInput:
     @pytest.mark.parametrize("type", [None, [], object(), "str",
                                       3+4j, (), {}])
     def test_raises_if_param_not_float(self, input, type):
-        with pytest.raises(TypeError):
-            build_adjacency_matrix(**{input: type})
+        with pytest.raises(TypeError,
+                           match=r"Invalid .* floating.*"):
+            build_prejudice_matrix(**{input: type})
 
     @pytest.mark.parametrize("input", [
         "no_of_topics"
@@ -577,8 +587,9 @@ class TestCheckSusceptibilityInput:
     @pytest.mark.parametrize("type", [None, 4.5, [], object(), "str",
                                       3+4j, (), {}])
     def test_raises_if_param_not_int(self, input, type):
-        with pytest.raises(TypeError):
-            build_susceptibility_matrix(**{input: type})
+        with pytest.raises(TypeError,
+                           match=r"Invalid .* integer .*"):
+            build_prejudice_matrix(**{input: type})
 
     @pytest.mark.parametrize("no_of_topics", [-5, -1, 0])
     def test_raises_if_no_of_topics_lower_than_1(self, no_of_topics):
@@ -593,7 +604,7 @@ class TestCheckSusceptibilityInput:
             build_prejudice_matrix(std_prejudice=std_prejudice)
 
 
-class TestCheckPrejudiceInput:
+class TestCheckSusceptibilityInput:
 
     @pytest.mark.parametrize("input", [
         "mean_susceptibility", "std_susceptibility"
@@ -601,8 +612,9 @@ class TestCheckPrejudiceInput:
     @pytest.mark.parametrize("type", [None, [], object(), "str",
                                       3+4j, (), {}])
     def test_raises_if_param_not_float(self, input, type):
-        with pytest.raises(TypeError):
-            build_prejudice_matrix(**{input: type})
+        with pytest.raises(TypeError,
+                           match=r"Invalid .* floating.*"):
+            build_susceptibility_matrix(**{input: type})
 
     @pytest.mark.parametrize("std_susceptibility", [-5, -1, -0.5, -0.001])
     def test_raises_if_negative_std_susceptibility(self, std_susceptibility):

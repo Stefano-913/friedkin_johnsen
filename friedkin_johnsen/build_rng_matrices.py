@@ -98,14 +98,7 @@ def check_adjacency_input(nodes,
                       "which will result in all edges having the same weight.",
                       UserWarning)
 
-    if seed is not None and type(seed) is not int:
-        raise TypeError("Invalid type for input seed: "
-                        f"{item_summary_for_error(seed)}. "
-                        "Expected either 'None' or integer number.")
-    if type(seed) is int and seed < 0:
-        raise ValueError("Invalid input seed: "
-                         f"{seed}. "
-                         "Expected either 'None' or non-negative integer.")
+    check_seed(seed)
 
     if type(tries) is not int:
         raise TypeError("Invalid type for input 'number of tries': "
