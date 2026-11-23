@@ -4,6 +4,7 @@ import sys
 import numpy as np
 from scipy.sparse import csr_array, dia_array
 from ...opinion_models.de_groot import DeGrootModel
+from ...opinion_models.friedkin_johnsen import FJModel
 
 from .helper_test_funcs import fj_model_from_lists
 
@@ -332,6 +333,15 @@ class TestFJModelConvergenceRate:
                                     susceptibility=[1, 1, 0.5])
         # No convergence
         assert np.allclose(model.convergence_rate, 1)
+
+
+@pytest.mark.parametrize("type", [np.array, csr_array, list, str])
+def test_raise_if_wrong_susceptibility_type(type):
+    with pytest.raises(TypeError,
+                       match="Susceptibility matrix is of .* type"):
+        FJModel(adjacency=csr_array([0, 1], [1, 0]),
+                prejudice=np.array([1, 0.4]),
+                susceptibility=type([0.2, 0.5]))
 
 
 if __name__ == "__main__":
