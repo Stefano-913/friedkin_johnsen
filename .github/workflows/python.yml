@@ -37,4 +37,4 @@ jobs:
         python -m pip install .
     - name: Test with pytest
       run: |
-        python -m pytest ./friedkin_johnsen/tests/ --cov=graphomics --cov-config=.coveragerc
+        python -m pytest ./friedkin_johnsen/tests/ --cov=friedkin_johnsen --cov-config=.coveragerc
