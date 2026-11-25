@@ -128,7 +128,10 @@ class TestAdjacencyMatrix:
                     weights_variability=0,
                     seed=1
                 )
-        assert mean_row_half_difference(matrix) < 0.2
+        # A degree of variability is still present due
+        # to inner clipping of the parameter to avoid
+        # division by zero.
+        assert mean_row_half_difference(matrix) < 0.05
 
     def test_weights_variability_is_monotonically_increasing(self):
         variabilities = [0.01, 0.1, 1, 10, 100]
