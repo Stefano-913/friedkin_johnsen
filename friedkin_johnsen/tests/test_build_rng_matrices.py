@@ -31,7 +31,7 @@ def mean_row_half_difference(matrix: sp.csr_array):
     half_differences = []
 
     for i in range(matrix.shape[0]):
-        row_values = matrix.data
+        row_values = matrix.data[matrix.indptr[i]:matrix.indptr[i + 1]]
         half_differences.append((row_values.max() - row_values.min()) / 2)
     return sum(half_differences) / len(half_differences)
 
