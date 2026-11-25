@@ -563,13 +563,9 @@ class TestCheckAdjacencyInput:
     def test_warns_if_too_high_min_edge_weight(self, min_edge_weight):
         with pytest.warns(UserWarning,
                           match=r"'min_edge_weight' value is.*"
-                          "which will result in all edges having the "
+                          "will result in all edges having the "
                           "same weight."):
-            with pytest.warns(UserWarning,
-                              match=r"'min_edge_weight' value is.*"
-                              "These values will result in a significant "
-                              "portion of the edges having the same weight."):
-                build_adjacency_matrix(min_edge_weight=min_edge_weight)
+            build_adjacency_matrix(min_edge_weight=min_edge_weight)
 
 
 class TestCheckPrejudiceInput:

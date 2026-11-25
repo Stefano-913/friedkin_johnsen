@@ -87,16 +87,16 @@ def check_adjacency_input(nodes,
                       f"{min_edge_weight}. During process, the "
                       "value will be assumed to be the lowest "
                       f"possible ({lowest_edge_weight}).", UserWarning)
-    if min_edge_weight >= 1/mean_node_degree:
+    if min_edge_weight >= 0.5:
+        warnings.warn(f"'min_edge_weight' value is {min_edge_weight}, "
+                      "which will result in all edges having the same weight.",
+                      UserWarning)
+    elif min_edge_weight >= 1/mean_node_degree:
         warnings.warn(f"'min_edge_weight' value is {min_edge_weight}, "
                       "while the mean degree of every node is "
                       f"{mean_node_degree}. "
                       "These values will result in a significant portion "
                       "of the edges having the same weight.", UserWarning)
-    if min_edge_weight >= 0.5:
-        warnings.warn(f"'min_edge_weight' value is {min_edge_weight}, "
-                      "which will result in all edges having the same weight.",
-                      UserWarning)
 
     check_seed(seed)
 
