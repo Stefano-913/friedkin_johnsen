@@ -544,28 +544,92 @@ class TestCheckAdjacencyInput:
                           r"will be assumed to be the lowest possible.*"):
             build_adjacency_matrix(min_edge_weight=min_edge_weight)
 
+    # ---
+
+    @pytest.mark.filterwarnings("ignore:.*min_edge_weight.*:UserWarning")
     @pytest.mark.parametrize("min_edge_weight, mean_node_degree", [
-        (0.34, 3),
+        (0.4, 5),
         (0.1, 10),
-        (0.2, 5)
+        (0.02, 50)
+        ])
+    def test_high_min_weight_gives_mostly_uniform_edges(self,
+                                                        min_edge_weight,
+                                                        mean_node_degree):
+        # GIVEN: input min_edge_weight
+        # WHEN: the mininimum weight reaches or surpasses 1/mean_node_degree
+        #       but remains below 0.5
+        # THEN: a significant portion of the nodes might have edges with
+        #       uniform weights
+
+        matrix = build_adjacency_matrix(min_edge_weight=min_edge_weight,
+                                        mean_node_degree=mean_node_degree,
+                                        seed=1)
+
+        no_users = matrix.shape[0]
+        rows = [matrix.data[matrix.indptr[i]:matrix.indptr[i+1]]
+                for i in range(no_users)]
+        uniform_weights = [np.allclose(row, row[0], atol=1e-3)
+                           for row in rows]
+
+        # The check threshold is arbitrary and might fail for lower
+        # values of mean_node_degree, as their degree distribution is
+        # way more inconsistent.
+        # I purposefully chose values that are way more likely to
+        # consistently present the problem for any given seed.
+        assert float(sum(uniform_weights))/no_users > 0.5
+
+    @pytest.mark.parametrize("min_edge_weight, mean_node_degree", [
+        (0.4, 5),
+        (0.1, 10),
+        (0.02, 50)
         ])
     def test_warns_min_weight_above_mean_degree(self,
                                                 min_edge_weight,
                                                 mean_node_degree):
+        # GIVEN: input min_edge_weight
+        # WHEN: the mininimum weight reaches or surpasses 1/mean_node_degree
+        #       but remains below 0.5
+        # THEN: a warning is issued
+
         with pytest.warns(UserWarning,
                           match=r"'min_edge_weight' value is.*"
-                          "These values will result in a significant portion "
-                          "of the edges having the same weight."):
+                          "These values might result in a significant portion "
+                          "of the nodes having edges with uniform weight."):
             build_adjacency_matrix(min_edge_weight=min_edge_weight,
-                                   mean_node_degree=mean_node_degree)
+                                   mean_node_degree=mean_node_degree,
+                                   seed=1)
+
+    # ---
+
+    @pytest.mark.filterwarnings("ignore:.*min_edge_weight.*:UserWarning")
+    @pytest.mark.parametrize("min_edge_weight", [0.5, 0.7, 1])
+    def test_uniform_edges_if_too_high_min_edge_weight(self, min_edge_weight):
+        # GIVEN: input min_edge_weight
+        # WHEN: the mininimum weight reaches or surpasses 0.5
+        # THEN: all the nodes have edges of uniform weight
+
+        matrix = build_adjacency_matrix(min_edge_weight=min_edge_weight,
+                                        seed=1)
+
+        no_users = matrix.shape[0]
+        non_empty_rows = [matrix.data[matrix.indptr[i]:matrix.indptr[i+1]]
+                          for i in range(no_users)]
+        uniform_weights = [np.allclose(row, row[0]) for row in non_empty_rows]
+
+        assert sum(uniform_weights) == no_users
 
     @pytest.mark.parametrize("min_edge_weight", [0.5, 0.7, 1])
     def test_warns_if_too_high_min_edge_weight(self, min_edge_weight):
+        # GIVEN: input min_edge_weight
+        # WHEN: the mininimum weight reaches or surpasses 0.5
+        # THEN: a warning is issued
+
         with pytest.warns(UserWarning,
                           match=r"'min_edge_weight' value is.*"
-                          "will result in all edges having the "
-                          "same weight."):
-            build_adjacency_matrix(min_edge_weight=min_edge_weight)
+                          "which will result in all nodes having edges with "
+                          "uniform weight."):
+            build_adjacency_matrix(min_edge_weight=min_edge_weight,
+                                   seed=1)
 
 
 class TestCheckPrejudiceInput:

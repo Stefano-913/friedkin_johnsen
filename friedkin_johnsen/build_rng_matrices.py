@@ -89,14 +89,16 @@ def check_adjacency_input(nodes,
                       f"possible ({lowest_edge_weight}).", UserWarning)
     if min_edge_weight >= 0.5:
         warnings.warn(f"'min_edge_weight' value is {min_edge_weight}, "
-                      "which will result in all edges having the same weight.",
+                      "which will result in all nodes having edges with "
+                      "uniform weight.",
                       UserWarning)
     elif min_edge_weight >= 1/mean_node_degree:
         warnings.warn(f"'min_edge_weight' value is {min_edge_weight}, "
                       "while the mean degree of every node is "
                       f"{mean_node_degree}. "
-                      "These values will result in a significant portion "
-                      "of the edges having the same weight.", UserWarning)
+                      "These values might result in a significant portion "
+                      "of the nodes having edges with uniform weight.",
+                      UserWarning)
 
     check_seed(seed)
 
@@ -195,11 +197,11 @@ def build_adjacency_matrix(nodes: int = 1000,
         Notes
         -----
         Modifying the weights, one can functionally isolate users if formally
-        present edges are set to have zero weight. To prevent this, a minimum
-        edge value is chosen; conscious of the fact that in cases of very high
-        degree (or very high minimum) this de-facto nullifies the Dirichlet
-        distribution and defaults to a uniform weight distribution of 1/degree
-        across the majority of the edges.
+        present edges are set to have weight close to zero. To prevent this,
+        a minimum edge value is etablished; conscious of the fact that in cases 
+        of very high degree (or very high minimum) this de-facto nullifies the
+        Dirichlet distribution and for a significant portion of the nodes
+        can default to a uniform weight distribution of 1/degree in the edges.
     """
     lowest_edge_weight = 0.001
 
