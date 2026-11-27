@@ -142,18 +142,17 @@ class TestFileLoading:
         with pytest.raises(AttributeError, ):
             f(fn.name, relative_path=str(tmp_path))
 
-    def test_nested_function_valueerror_propagates_unwrapped(self, tmp_path):
+    def test_nested_function_keyerror_gets_wrapped(self, tmp_path):
         # GIVEN: a function f() wrapped by the decorator file_loading
         #        and a second function g() called within f().
-        # WHEN: the g() function function raises a ValueError within f().
-        # THEN: the error is propagated as is, without being wrapped
-        #       by the decorator.
+        # WHEN: the g() function function raises a KeyError within f().
+        # THEN: the error is wrapped by the decorator.
 
         fn = tmp_path / "matrix.csv"
         np.savetxt(fn, np.array([[1, 2], [3, 4]]), delimiter=",")
 
         def g():
-            raise ValueError("error raised by nested function")
+            raise KeyError("error raised by nested function")
 
         @file_loading
         def f(unused_file_path):
@@ -161,7 +160,8 @@ class TestFileLoading:
             return np.array([[1, 2], [3, 4]])
 
         with pytest.raises(ValueError,
-                           match="error raised by nested function"):
+                           match=r".*Error in the loading of .*: 'error "
+                           "raised by nested function'"):
             f(fn.name, relative_path=str(tmp_path))
 
 # ---------
